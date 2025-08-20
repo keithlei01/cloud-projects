@@ -1,0 +1,33 @@
+# cognito-dummy-users
+Aug 20
+- created and executed all tasks
+- npm run deploy
+
+FAILED...
+
+Do you wish to deploy these changes (y/n)? y
+CognitoDummyUsersStack: deploying... [1/1]
+[0%] start: Publishing 456cb0185a2fb74f65509142da5cecc43b25a8d960f32973e0a8f1ef6753606f:452114121072-ap-east-1
+[0%] start: Publishing 9bab6e11bb4a1bc37b2a69b3f3ca01ca32c3c7115631a4a6d24214efd4bd6a39:452114121072-ap-east-1
+[50%] success: Published 456cb0185a2fb74f65509142da5cecc43b25a8d960f32973e0a8f1ef6753606f:452114121072-ap-east-1
+[100%] success: Published 9bab6e11bb4a1bc37b2a69b3f3ca01ca32c3c7115631a4a6d24214efd4bd6a39:452114121072-ap-east-1
+CognitoDummyUsersStack: creating CloudFormation changeset...
+7:18:03 PM | CREATE_FAILED        | AWS::Lambda::Function        | AWS679f53fac002430...7982bd22872D164C4C
+Resource handler returned message: "The runtime parameter of nodejs14.x is no longer supported for creating or updating AWS Lambda functions. We recommend you use
+a supported runtime while creating or updating functions. (Service: Lambda, Status Code: 400, Request ID: b88bcab6-b58b-4aa0-be0b-773f35e3b95c) (SDK Attempt Count
+: 1)" (RequestToken: ffd4c461-f1c8-21f0-3548-64b882409045, HandlerErrorCode: InvalidRequest)
+
+
+ ❌  CognitoDummyUsersStack failed: Error: The stack named CognitoDummyUsersStack failed creation, it may need to be manually deleted from the AWS console: ROLLBACK_COMPLETE: Resource handler returned message: "The runtime parameter of nodejs14.x is no longer supported for creating or updating AWS Lambda functions. We recommend you use a supported runtime while creating or updating functions. (Service: Lambda, Status Code: 400, Request ID: b88bcab6-b58b-4aa0-be0b-773f35e3b95c) (SDK Attempt Count: 1)" (RequestToken: ffd4c461-f1c8-21f0-3548-64b882409045, HandlerErrorCode: InvalidRequest)
+    at FullCloudFormationDeployment.monitorDeployment (/Users/keithlei/Documents/Kiro/cloud-projects/cognito-dummy-users/node_modules/aws-cdk/lib/index.js:371:10236)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async deployStack2 (/Users/keithlei/Documents/Kiro/cloud-projects/cognito-dummy-users/node_modules/aws-cdk/lib/index.js:374:145469)
+    at async /Users/keithlei/Documents/Kiro/cloud-projects/cognito-dummy-users/node_modules/aws-cdk/lib/index.js:374:128787
+    at async run (/Users/keithlei/Documents/Kiro/cloud-projects/cognito-dummy-users/node_modules/aws-cdk/lib/index.js:374:126793)
+
+ ❌ Deployment failed: Error: Stack Deployments Failed: Error: The stack named CognitoDummyUsersStack failed creation, it may need to be manually deleted from the AWS console: ROLLBACK_COMPLETE: Resource handler returned message: "The runtime parameter of nodejs14.x is no longer supported for creating or updating AWS Lambda functions. We recommend you use a supported runtime while creating or updating functions. (Service: Lambda, Status Code: 400, Request ID: b88bcab6-b58b-4aa0-be0b-773f35e3b95c) (SDK Attempt Count: 1)" (RequestToken: ffd4c461-f1c8-21f0-3548-64b882409045, HandlerErrorCode: InvalidRequest)
+    at deployStacks (/Users/keithlei/Documents/Kiro/cloud-projects/cognito-dummy-users/node_modules/aws-cdk/lib/index.js:374:129094)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async CdkToolkit.deploy (/Users/keithlei/Documents/Kiro/cloud-projects/cognito-dummy-users/node_modules/aws-cdk/lib/index.js:374:147518)
+    at async exec4 (/Users/keithlei/Documents/Kiro/cloud-projects/cognito-dummy-users/node_modules/aws-cdk/lib/index.js:429:51795)
+
