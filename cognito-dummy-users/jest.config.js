@@ -1,16 +1,21 @@
 module.exports = {
-  preset: 'ts-jest',
   testEnvironment: 'node',
-  roots: ['<rootDir>/lib'],
-  testMatch: ['**/__tests__/**/*.test.ts'],
+  roots: ['<rootDir>/test'],
+  testMatch: ['**/*.test.ts'],
   transform: {
-    '^.+\\.ts$': 'ts-jest',
+    '^.+\\.tsx?$': 'ts-jest'
   },
   collectCoverageFrom: [
     'lib/**/*.ts',
     '!lib/**/*.d.ts',
-    '!lib/**/__tests__/**',
   ],
-  moduleFileExtensions: ['ts', 'js', 'json'],
-  setupFilesAfterEnv: [],
+  coverageDirectory: 'coverage',
+  coverageReporters: [
+    'text',
+    'lcov',
+    'html'
+  ],
+  setupFilesAfterEnv: ['<rootDir>/test/setup.ts'],
+  testTimeout: 30000, // Default timeout for unit tests
+  maxWorkers: 1
 };

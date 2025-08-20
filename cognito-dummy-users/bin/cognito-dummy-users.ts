@@ -7,10 +7,13 @@ const app = new cdk.App();
 
 // Get environment configuration from CDK context or environment variables
 const account = app.node.tryGetContext('account') || process.env.CDK_DEFAULT_ACCOUNT;
-const region = app.node.tryGetContext('region') || process.env.CDK_DEFAULT_REGION || 'us-east-1';
+const region = app.node.tryGetContext('region') || process.env.CDK_DEFAULT_REGION || 'ap-east-1';
+
+// Support custom stack name for integration testing
+const stackName = process.env.CDK_STACK_NAME || 'CognitoDummyUsersStack';
 
 // Create the stack with proper naming and environment settings
-new CognitoDummyUsersStack(app, 'CognitoDummyUsersStack', {
+new CognitoDummyUsersStack(app, stackName, {
     env: {
         account: account,
         region: region,
