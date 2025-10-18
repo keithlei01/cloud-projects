@@ -21,7 +21,7 @@ export class CreditCardRedactor {
     this.placeholder = placeholder;
     // Regex pattern to match potential credit card numbers
     // Matches 13-19 digits with optional separators (spaces, dashes, dots)
-    this.cardPattern = /\b(?:\d{4}[\s\-\.]?){3,4}\d{1,4}\b/g;
+    this.cardPattern = /\b\d{4}[\s\-\.]?\d{4}[\s\-\.]?\d{4}[\s\-\.]?\d{1,4}\b|\b\d{13,19}\b/g;
   }
 
   luhnChecksum(cardNumber: string): boolean {
@@ -44,16 +44,21 @@ export class CreditCardRedactor {
 
     // Luhn algorithm
     let checksum = 0;
-    for (let i = 0; i < digits.length; i++) {
-      const digit = digits[digits.length - 1 - i];
+    for (let i = 0; i < digits.length - 1; i++) { // Exclude check digit
+      const digit = digits[digits.length - 2 - i]; // Start from second-to-last digit
       if (digit !== undefined) {
-        if (i % 2 === 1) { // Every second digit from the right
+        if (i % 2 === 0) { // Every second digit from the right (starting with second-to-last)
           const doubled = digit * 2;
           checksum += doubled < 10 ? doubled : doubled - 9;
         } else {
           checksum += digit;
         }
       }
+    }
+    // Add the check digit (last digit) without modification
+    const checkDigit = digits[digits.length - 1];
+    if (checkDigit !== undefined) {
+      checksum += checkDigit;
     }
 
     return checksum % 10 === 0;
