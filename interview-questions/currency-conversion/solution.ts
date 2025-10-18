@@ -46,10 +46,12 @@ class CurrencyConverter {
       }
 
       const [fromCurrency, toCurrency, rateStr] = parts;
-      const rate = parseFloat(rateStr);
-      
-      if (rate > 0) {
-        this.addRate(fromCurrency, toCurrency, rate);
+      if (fromCurrency && toCurrency && rateStr) {
+        const rate = parseFloat(rateStr);
+        
+        if (rate > 0) {
+          this.addRate(fromCurrency, toCurrency, rate);
+        }
       }
     }
   }

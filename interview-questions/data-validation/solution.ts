@@ -367,11 +367,13 @@ class CreditCardValidator extends Validator {
 
     for (let i = 0; i < digits.length; i++) {
       const digit = digits[digits.length - 1 - i];
-      if (i % 2 === 1) { // Every second digit from the right
-        const doubled = digit * 2;
-        checksum += doubled < 10 ? doubled : doubled - 9;
-      } else {
-        checksum += digit;
+      if (digit !== undefined) {
+        if (i % 2 === 1) { // Every second digit from the right
+          const doubled = digit * 2;
+          checksum += doubled < 10 ? doubled : doubled - 9;
+        } else {
+          checksum += digit;
+        }
       }
     }
 

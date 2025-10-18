@@ -11,7 +11,6 @@
  */
 
 import * as express from 'express';
-import { Database } from 'sqlite3';
 
 enum RateLimitAlgorithm {
   TOKEN_BUCKET = "token_bucket",
@@ -76,49 +75,7 @@ class InMemoryStorage implements RateLimitStorage {
   }
 }
 
-class SimpleRateLimiter {
-  private requestsPerWindow: number;
-  private windowSeconds: number;
-  private tokens: number;
-  private lastRefill: number;
-
-  constructor(requestsPerWindow: number, windowSeconds: number) {
-    this.requestsPerWindow = requestsPerWindow;
-    this.windowSeconds = windowSeconds;
-    this.tokens = requestsPerWindow;
-    this.lastRefill = Date.now();
-  }
-
-  acquire(): boolean {
-    const now = Date.now();
-    const timePassed = (now - this.lastRefill) / 1000;
-    const tokensToAdd = Math.floor(timePassed * this.requestsPerWindow / this.windowSeconds);
-
-    if (tokensToAdd > 0) {
-      this.tokens = Math.min(this.requestsPerWindow, this.tokens + tokensToAdd);
-      this.lastRefill = now;
-    }
-
-    if (this.tokens > 0) {
-      this.tokens--;
-      return true;
-    }
-
-    return false;
-  }
-
-  waitTime(): number {
-    const now = Date.now();
-    const timePassed = (now - this.lastRefill) / 1000;
-    const tokensToAdd = Math.floor(timePassed * this.requestsPerWindow / this.windowSeconds);
-
-    if (tokensToAdd > 0) {
-      return 0.0;
-    }
-
-    return (1.0 - tokensToAdd) * this.windowSeconds / this.requestsPerWindow;
-  }
-}
+// SimpleRateLimiter class removed as it's not used in the main implementation
 
 abstract class RateLimiter {
   abstract isAllowed(key: string, config: RateLimitConfig): Promise<RateLimitResult>;
@@ -407,8 +364,7 @@ export function rateLimit(
 
     descriptor.value = async function(...args: any[]) {
       // Create rate limit manager (in real implementation, this would be injected)
-      const storage = new InMemoryStorage();
-      const rateLimitManager = new RateLimitManager(storage);
+      const rateLimitManager = new RateLimitManager(new InMemoryStorage());
 
       // Extract key
       const key = keyFunc ? keyFunc(...args) : `${target.constructor.name}:${propertyKey}`;
@@ -438,8 +394,7 @@ export function rateLimit(
 // Example usage and testing
 if (require.main === module) {
   // Create rate limit manager with in-memory storage
-  const storage = new InMemoryStorage();
-  const rateLimitManager = new RateLimitManager(storage);
+  const rateLimitManager = new RateLimitManager(new InMemoryStorage());
 
   // Test token bucket rate limiter
   console.log("Testing Token Bucket Rate Limiter...");
