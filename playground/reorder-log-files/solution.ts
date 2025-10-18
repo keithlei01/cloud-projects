@@ -27,7 +27,7 @@ function reorderLogFiles(logs: string[]): string[] {
 }
 
 function isLetters(s: string): boolean {
-    return !Number.isNaN(Number(s.split(' ')[1]));
+    return Number.isNaN(Number(s.split(' ')[1]));
 }
 
 export { reorderLogFiles };
