@@ -1,0 +1,69 @@
+{
+  "name": "stripe-integration-interview-questions",
+  "version": "1.0.0",
+  "description": "TypeScript coding questions for Stripe integration engineering interviews",
+  "main": "index.js",
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "dev": "ts-node src/index.ts",
+    "test": "jest",
+    "test:watch": "jest --watch",
+    "lint": "eslint src/**/*.ts",
+    "lint:fix": "eslint src/**/*.ts --fix",
+    "format": "prettier --write src/**/*.ts",
+    "currency-conversion": "ts-node currency-conversion/solution.ts",
+    "credit-card-redaction": "ts-node credit-card-redaction/solution.ts",
+    "api-integration": "ts-node api-integration/solution.ts",
+    "webhook-handler": "ts-node webhook-handler/solution.ts",
+    "payment-processing": "ts-node payment-processing/solution.ts",
+    "error-handling": "ts-node error-handling/solution.ts",
+    "data-validation": "ts-node data-validation/solution.ts",
+    "rate-limiting": "ts-node rate-limiting/solution.ts"
+  },
+  "keywords": [
+    "stripe",
+    "integration",
+    "engineering",
+    "interview",
+    "typescript",
+    "payment",
+    "processing",
+    "webhooks",
+    "api"
+  ],
+  "author": "Your Name",
+  "license": "MIT",
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "@types/express": "^4.17.17",
+    "@types/jest": "^29.5.0",
+    "@typescript-eslint/eslint-plugin": "^6.0.0",
+    "@typescript-eslint/parser": "^6.0.0",
+    "eslint": "^8.45.0",
+    "eslint-config-prettier": "^9.0.0",
+    "eslint-plugin-prettier": "^5.0.0",
+    "jest": "^29.6.0",
+    "prettier": "^3.0.0",
+    "ts-jest": "^29.1.0",
+    "ts-node": "^10.9.0",
+    "typescript": "^5.1.0"
+  },
+  "dependencies": {
+    "axios": "^1.4.0",
+    "express": "^4.18.0",
+    "sqlite3": "^5.1.0",
+    "uuid": "^9.0.0"
+  },
+  "engines": {
+    "node": ">=16.0.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/yourusername/stripe-integration-interview-questions.git"
+  },
+  "bugs": {
+    "url": "https://github.com/yourusername/stripe-integration-interview-questions/issues"
+  },
+  "homepage": "https://github.com/yourusername/stripe-integration-interview-questions#readme"
+}
