@@ -9,7 +9,7 @@
  * 5. Comprehensive error handling
  */
 
-import axios, { AxiosInstance, AxiosRequestConfig, AxiosResponse } from 'axios';
+import axios, { AxiosInstance, AxiosResponse } from 'axios';
 
 enum APIErrorType {
   AUTHENTICATION = "authentication",
@@ -24,7 +24,7 @@ enum APIErrorType {
 
 export class APIError extends Error {
   public readonly errorType: APIErrorType;
-  public readonly statusCode?: number;
+  public readonly statusCode: number | undefined;
   public readonly responseData?: any;
 
   constructor(
@@ -40,13 +40,13 @@ export class APIError extends Error {
     this.responseData = responseData;
   }
 
-  toString(): string {
+  override toString(): string {
     return `${this.errorType}: ${this.message}`;
   }
 }
 
 export class APIRateLimitError extends APIError {
-  public readonly retryAfter?: number;
+  public readonly retryAfter: number | undefined;
 
   constructor(message: string, retryAfter?: number) {
     super(message, APIErrorType.RATE_LIMIT);
@@ -62,7 +62,7 @@ export class APIAuthenticationError extends APIError {
   }
 }
 
-interface APIConfig {
+export interface APIConfig {
   baseUrl: string;
   apiKey: string;
   timeout: number;
@@ -72,12 +72,7 @@ interface APIConfig {
   rateLimitWindow: number; // seconds
 }
 
-interface RateLimiter {
-  requestsPerWindow: number;
-  windowSeconds: number;
-  tokens: number;
-  lastRefill: number;
-}
+// RateLimiter interface removed as it's not used in the implementation
 
 class SimpleRateLimiter {
   private requestsPerWindow: number;
