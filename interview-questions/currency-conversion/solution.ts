@@ -155,22 +155,3 @@ export function getExchangeRate(
   return converter.getBestRate(fromCurrency, toCurrency);
 }
 
-// Test cases
-if (require.main === module) {
-  // Test direct conversion
-  const rates = "AUD:USD:0.7,AUD:JPY:100,USD:CAD:1.2";
-  console.log(`AUD to USD: ${getExchangeRate(rates, 'AUD', 'USD')}`); // Should be 0.7
-  
-  // Test indirect conversion
-  console.log(`AUD to CAD: ${getExchangeRate(rates, 'AUD', 'CAD')}`); // Should be 0.84
-  
-  // Test multiple paths
-  const rates2 = "AUD:USD:0.7,USD:EUR:0.8,AUD:EUR:0.6";
-  console.log(`AUD to EUR: ${getExchangeRate(rates2, 'AUD', 'EUR')}`); // Should be 0.6
-  
-  // Test impossible conversion
-  console.log(`CAD to JPY: ${getExchangeRate(rates, 'CAD', 'JPY')}`); // Should be null
-  
-  // Test same currency
-  console.log(`USD to USD: ${getExchangeRate(rates, 'USD', 'USD')}`); // Should be 1.0
-}

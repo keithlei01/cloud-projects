@@ -666,31 +666,3 @@ export function createPaymentApp(): express.Application {
   return app;
 }
 
-// Example usage
-if (require.main === module) {
-  const app = createPaymentApp();
-  const port = 5000;
-
-  // Create a test customer
-  const db = new PaymentDatabase();
-  const testCustomer: Customer = {
-    id: "cus_test123",
-    email: "test@example.com",
-    name: "Test Customer",
-    address: {
-      line1: "123 Test St",
-      city: "Test City",
-      state: "TS",
-      postal_code: "12345",
-      country: "US"
-    },
-    payment_methods: [],
-    risk_profile: RiskLevel.LOW,
-    created_at: Math.floor(Date.now() / 1000)
-  };
-  db.saveCustomer(testCustomer);
-
-  app.listen(port, () => {
-    console.log(`Payment API server running on port ${port}`);
-  });
-}

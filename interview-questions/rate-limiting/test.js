@@ -1,6 +1,7 @@
 // Test for Rate Limiting solution
 const { RateLimitManager, RateLimitError, RateLimitMiddleware } = require('./solution');
 
+async function runTests() {
 console.log('🧪 Testing Rate Limiting Solution\n');
 
 // Helper function to test rate limiting
@@ -91,3 +92,7 @@ console.log('✅ RateLimitMiddleware created successfully');
 console.log('');
 
 console.log('🎉 Rate limiting tests completed!');
+}
+
+// Run the tests
+runTests().catch(console.error);

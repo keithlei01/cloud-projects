@@ -10,7 +10,7 @@
  * 6. Distributed system support
  */
 
-import * as express from 'express';
+import { Request, Response, NextFunction } from 'express';
 
 enum RateLimitAlgorithm {
   TOKEN_BUCKET = "token_bucket",
@@ -242,6 +242,10 @@ export class RateLimitManager {
     this.limiters.set(RateLimitAlgorithm.FIXED_WINDOW, new FixedWindowRateLimiter(storage));
   }
 
+  getStorage(): RateLimitStorage {
+    return this.storage;
+  }
+
   async isAllowed(key: string, config: RateLimitConfig): Promise<RateLimitResult> {
     const limiter = this.limiters.get(config.algorithm);
     if (!limiter) {
@@ -310,8 +314,8 @@ export class RateLimitMiddleware {
     this.rateLimitManager = rateLimitManager;
   }
 
-  middleware(config: RateLimitConfig, keyExtractor?: (req: express.Request) => string) {
-    return async (req: express.Request, res: express.Response, next: express.NextFunction) => {
+  middleware(config: RateLimitConfig, keyExtractor?: (req: Request) => string) {
+    return async (req: Request, res: Response, next: NextFunction) => {
       try {
         // Extract key from request
         const key = keyExtractor ? keyExtractor(req) : this.extractDefaultKey(req);
@@ -320,20 +324,19 @@ export class RateLimitMiddleware {
         const result = await this.rateLimitManager.isAllowed(key, config);
 
         // Add rate limit headers
-        res.set({
-          'X-RateLimit-Limit': result.limit.toString(),
-          'X-RateLimit-Remaining': result.remaining.toString(),
-          'X-RateLimit-Reset': Math.ceil(result.resetTime).toString()
-        });
+        res.setHeader('X-RateLimit-Limit', result.limit.toString());
+        res.setHeader('X-RateLimit-Remaining', result.remaining.toString());
+        res.setHeader('X-RateLimit-Reset', Math.ceil(result.resetTime).toString());
 
         if (!result.allowed) {
           if (result.retryAfter) {
-            res.set('X-RateLimit-Retry-After', Math.ceil(result.retryAfter).toString());
+            res.setHeader('X-RateLimit-Retry-After', Math.ceil(result.retryAfter).toString());
           }
-          res.status(429).json({
+          res.writeHead(429, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({
             error: 'Rate limit exceeded',
             retryAfter: result.retryAfter
-          });
+          }));
           return;
         }
 
@@ -345,7 +348,7 @@ export class RateLimitMiddleware {
     };
   }
 
-  private extractDefaultKey(req: express.Request): string {
+  private extractDefaultKey(req: Request): string {
     // Default key extraction - can be customized
     const ip = req.ip || req.connection.remoteAddress || 'unknown';
     const userAgent = req.get('User-Agent') || 'unknown';
@@ -391,76 +394,3 @@ export function rateLimit(
   };
 }
 
-// Example usage and testing
-if (require.main === module) {
-  // Create rate limit manager with in-memory storage
-  const rateLimitManager = new RateLimitManager(new InMemoryStorage());
-
-  // Test token bucket rate limiter
-  console.log("Testing Token Bucket Rate Limiter...");
-  const config: RateLimitConfig = {
-    limit: 5,
-    window: 60,
-    algorithm: RateLimitAlgorithm.TOKEN_BUCKET,
-    costPerRequest: 1
-  };
-
-  async function testRateLimiter() {
-    for (let i = 0; i < 10; i++) {
-      const result = await rateLimitManager.isAllowed("test_user", config);
-      console.log(`Request ${i + 1}: Allowed=${result.allowed}, Remaining=${result.remaining}`);
-      if (!result.allowed) {
-        console.log(`  Retry after: ${result.retryAfter?.toFixed(2)} seconds`);
-        break;
-      }
-      await new Promise(resolve => setTimeout(resolve, 100)); // Small delay between requests
-    }
-
-    // Test sliding window rate limiter
-    console.log("\nTesting Sliding Window Rate Limiter...");
-    const slidingConfig: RateLimitConfig = {
-      limit: 3,
-      window: 10,
-      algorithm: RateLimitAlgorithm.SLIDING_WINDOW,
-      costPerRequest: 1
-    };
-
-    for (let i = 0; i < 5; i++) {
-      const result = await rateLimitManager.isAllowed("test_user_2", slidingConfig);
-      console.log(`Request ${i + 1}: Allowed=${result.allowed}, Remaining=${result.remaining}`);
-      if (!result.allowed) {
-        console.log(`  Retry after: ${result.retryAfter?.toFixed(2)} seconds`);
-        break;
-      }
-      await new Promise(resolve => setTimeout(resolve, 100));
-    }
-
-    // Test fixed window rate limiter
-    console.log("\nTesting Fixed Window Rate Limiter...");
-    const fixedConfig: RateLimitConfig = {
-      limit: 2,
-      window: 5,
-      algorithm: RateLimitAlgorithm.FIXED_WINDOW,
-      costPerRequest: 1
-    };
-
-    for (let i = 0; i < 4; i++) {
-      const result = await rateLimitManager.isAllowed("test_user_3", fixedConfig);
-      console.log(`Request ${i + 1}: Allowed=${result.allowed}, Remaining=${result.remaining}`);
-      if (!result.allowed) {
-        console.log(`  Retry after: ${result.retryAfter?.toFixed(2)} seconds`);
-        break;
-      }
-      await new Promise(resolve => setTimeout(resolve, 100));
-    }
-
-    // Print metrics
-    console.log("\nRate Limiting Metrics:");
-    for (const key of ["test_user", "test_user_2", "test_user_3"]) {
-      const metrics = rateLimitManager.getMetrics(key);
-      console.log(`${key}: ${JSON.stringify(metrics, null, 2)}`);
-    }
-  }
-
-  testRateLimiter().catch(console.error);
-}
