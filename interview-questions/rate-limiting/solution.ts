@@ -12,7 +12,7 @@
 
 import { Request, Response, NextFunction } from 'express';
 
-enum RateLimitAlgorithm {
+export enum RateLimitAlgorithm {
   TOKEN_BUCKET = "token_bucket",
   SLIDING_WINDOW = "sliding_window",
   FIXED_WINDOW = "fixed_window",

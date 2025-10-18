@@ -1,5 +1,5 @@
 // Test for Rate Limiting solution
-const { RateLimitManager, RateLimitError, RateLimitMiddleware } = require('./solution');
+const { RateLimitManager, RateLimitError, RateLimitMiddleware, RateLimitAlgorithm } = require('./solution');
 
 async function runTests() {
 console.log('🧪 Testing Rate Limiting Solution\n');
@@ -24,7 +24,27 @@ async function testRateLimit(manager, key, config, testName) {
 
 // Test 1: Create rate limit manager
 console.log('1️⃣ Create rate limit manager');
-const manager = new RateLimitManager();
+// Create a simple in-memory storage for testing
+class TestStorage {
+    constructor() {
+        this.data = new Map();
+    }
+    async get(key) { return this.data.get(key); }
+    async set(key, data, ttl) { 
+        this.data.set(key, data);
+        if (ttl) setTimeout(() => this.data.delete(key), ttl * 1000);
+    }
+    async increment(key, amount = 1) {
+        const current = this.data.get(key) || { count: 0 };
+        current.count += amount;
+        this.data.set(key, current);
+        return current.count;
+    }
+    async expire(key, ttl) {
+        setTimeout(() => this.data.delete(key), ttl * 1000);
+    }
+}
+const manager = new RateLimitManager(new TestStorage());
 console.log('✅ RateLimitManager created successfully');
 console.log('');
 
@@ -33,7 +53,8 @@ console.log('2️⃣ Basic rate limiting');
 const config = {
     limit: 5,
     window: 60, // 60 seconds
-    algorithm: 'token_bucket'
+    algorithm: RateLimitAlgorithm.TOKEN_BUCKET,
+    costPerRequest: 1
 };
 
 await testRateLimit(manager, 'user1', config, 'Basic rate limiting');
@@ -54,7 +75,8 @@ console.log('5️⃣ Sliding window algorithm');
 const slidingConfig = {
     limit: 3,
     window: 10, // 10 seconds
-    algorithm: 'sliding_window'
+    algorithm: RateLimitAlgorithm.SLIDING_WINDOW,
+    costPerRequest: 1
 };
 
 await testRateLimit(manager, 'user5', slidingConfig, 'Sliding window - Request 1');
@@ -67,7 +89,8 @@ console.log('6️⃣ Fixed window algorithm');
 const fixedConfig = {
     limit: 2,
     window: 5, // 5 seconds
-    algorithm: 'fixed_window'
+    algorithm: RateLimitAlgorithm.FIXED_WINDOW,
+    costPerRequest: 1
 };
 
 await testRateLimit(manager, 'user6', fixedConfig, 'Fixed window - Request 1');
