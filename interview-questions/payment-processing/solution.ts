@@ -273,6 +273,11 @@ class FraudDetectionService {
     if (payment.amount > this.riskFactors.amountThreshold) {
       score += this.riskFactors.highAmountRisk;
     }
+    
+    // Very large amount risk (over $5000)
+    if (payment.amount > 500000) {
+      score += 0.5; // Additional high risk for very large amounts
+    }
 
     // New customer risk
     if (customer && customer.risk_profile === RiskLevel.HIGH) {
@@ -730,7 +735,11 @@ export class PaymentService {
       console.log(`Payment ${paymentId} refunded for amount ${refundAmount}`);
     }
 
-    return payment;
+    // Add refunded_amount to the returned payment object
+    return {
+      ...payment,
+      refunded_amount: refundAmount
+    };
   }
 
   async getPayment(paymentId: string): Promise<Payment> {
@@ -749,6 +758,15 @@ export class PaymentService {
 
     if (payment.status !== PaymentStatus.PENDING) {
       throw new PaymentStateError(`Cannot authorize payment in ${payment.status} state`);
+    }
+
+    // Check for fraud before authorization
+    const fraudResult = await this.fraudService.assessRisk(payment);
+    if (fraudResult.risk_level === RiskLevel.HIGH) {
+      payment.status = PaymentStatus.FAILED;
+      payment.updated_at = Math.floor(Date.now() / 1000);
+      await this.db.savePayment(payment);
+      throw new FraudDetectedError('High risk payment detected during authorization');
     }
 
     payment.status = PaymentStatus.AUTHORIZED;
