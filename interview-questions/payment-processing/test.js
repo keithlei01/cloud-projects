@@ -1,11 +1,54 @@
 // Jest tests for Payment Processing solution
 const { PaymentService, PaymentError, InvalidPaymentMethodError, InsufficientFundsError, FraudDetectedError } = require('./solution');
 
+// Mock database for testing
+class MockPaymentDatabase {
+  constructor() {
+    this.payments = new Map();
+    this.customers = new Map();
+    
+    // Add a test customer
+    this.customers.set('cus_test123', {
+      id: 'cus_test123',
+      name: 'Test Customer',
+      address: { country: 'US' },
+      payment_methods: ['credit_card', 'bank_transfer'],
+      risk_profile: 'low',
+      created_at: Date.now()
+    });
+  }
+
+  async getCustomer(customerId) {
+    return this.customers.get(customerId) || null;
+  }
+
+  async getPayment(paymentId) {
+    return this.payments.get(paymentId) || null;
+  }
+
+  async savePayment(payment) {
+    this.payments.set(payment.id, payment);
+    return payment;
+  }
+
+  async getCustomerPayments(customerId) {
+    const payments = [];
+    for (const payment of this.payments.values()) {
+      if (payment.customer_id === customerId) {
+        payments.push(payment);
+      }
+    }
+    return payments;
+  }
+}
+
 describe('Payment Processing', () => {
   let paymentService;
+  let mockDb;
 
   beforeEach(() => {
-    paymentService = new PaymentService();
+    mockDb = new MockPaymentDatabase();
+    paymentService = new PaymentService(mockDb);
   });
 
   describe('Payment Service Creation', () => {
@@ -100,13 +143,16 @@ describe('Payment Processing', () => {
       const paymentData = {
         amount: 1000,
         currency: 'USD',
-        payment_method: 'invalid_method',
+        payment_method: 'credit_card',
         customer_id: 'cus_test123',
-        description: 'Test payment'
+        description: 'Test payment',
+        metadata: {
+          risk_score: 0.9 // High risk to trigger fraud detection
+        }
       };
 
       const payment = await paymentService.createPayment(paymentData);
-      await expect(paymentService.processPayment(payment.id)).rejects.toThrow(InvalidPaymentMethodError);
+      await expect(paymentService.processPayment(payment.id)).rejects.toThrow(FraudDetectedError);
     });
   });
 

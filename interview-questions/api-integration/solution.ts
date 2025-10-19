@@ -12,7 +12,7 @@
 import axios, { AxiosInstance, AxiosResponse } from 'axios';
 
 enum APIErrorType {
-  AUTHENTICATION = "authentication",
+  AUTHENTICATION = "authentication_error",
   AUTHORIZATION = "authorization",
   NOT_FOUND = "not_found",
   RATE_LIMIT = "rate_limit",
@@ -24,6 +24,7 @@ enum APIErrorType {
 
 export class APIError extends Error {
   public readonly errorType: APIErrorType;
+  public readonly type: string;
   public readonly statusCode: number | undefined;
   public readonly responseData?: any;
 
@@ -36,6 +37,7 @@ export class APIError extends Error {
     super(message);
     this.name = 'APIError';
     this.errorType = errorType;
+    this.type = errorType;
     this.statusCode = statusCode;
     this.responseData = responseData;
   }
@@ -122,6 +124,7 @@ export class PaymentAPIClient {
   private axiosInstance: AxiosInstance;
 
   constructor(config: APIConfig) {
+    this.validateConfig(config);
     this.config = config;
     this.rateLimiter = new SimpleRateLimiter(
       config.rateLimitRequests,
@@ -163,6 +166,30 @@ export class PaymentAPIClient {
         throw error;
       }
     );
+  }
+
+  private validateConfig(config: APIConfig): void {
+    if (!config.baseUrl || typeof config.baseUrl !== 'string') {
+      throw new Error('baseUrl is required and must be a string');
+    }
+    if (!config.apiKey || typeof config.apiKey !== 'string') {
+      throw new Error('apiKey is required and must be a string');
+    }
+    if (config.timeout <= 0) {
+      throw new Error('timeout must be greater than 0');
+    }
+    if (config.maxRetries < 0) {
+      throw new Error('maxRetries must be non-negative');
+    }
+    if (config.retryBackoffFactor <= 0) {
+      throw new Error('retryBackoffFactor must be greater than 0');
+    }
+    if (config.rateLimitRequests <= 0) {
+      throw new Error('rateLimitRequests must be greater than 0');
+    }
+    if (config.rateLimitWindow <= 0) {
+      throw new Error('rateLimitWindow must be greater than 0');
+    }
   }
 
   private async makeRequest<T = any>(
@@ -285,6 +312,29 @@ export class PaymentAPIClient {
     }
 
     return this.makeRequest('GET', endpoint, undefined, params);
+  }
+
+  buildHeaders(): Record<string, string> {
+    return {
+      'Authorization': `Bearer ${this.config.apiKey}`,
+      'Content-Type': 'application/json',
+      'User-Agent': 'PaymentAPIClient/1.0'
+    };
+  }
+
+  parseResponse(responseText: string): any {
+    try {
+      return JSON.parse(responseText);
+    } catch (error) {
+      throw new APIError('Invalid JSON response', APIErrorType.UNKNOWN);
+    }
+  }
+
+  calculateRetryDelay(attempt: number): number {
+    return Math.min(
+      this.config.retryBackoffFactor * Math.pow(2, attempt),
+      30 // Max 30 seconds
+    );
   }
 }
 

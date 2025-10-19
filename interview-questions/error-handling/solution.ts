@@ -150,6 +150,11 @@ class ErrorClassifier {
   }
 
   isRetryable(error: Error): boolean {
+    // Check for custom isRetryable property first
+    if ('isRetryable' in error && typeof (error as any).isRetryable === 'boolean') {
+      return (error as any).isRetryable;
+    }
+    
     const errorType = this.classifyError(error);
     return errorType === ErrorType.RETRYABLE;
   }
@@ -277,7 +282,7 @@ class DeadLetterQueue {
   addOperation(operation: Operation, error: Error): Promise<void> {
     return new Promise((resolve, reject) => {
       this.db.run(`
-        INSERT INTO failed_operations 
+        INSERT OR REPLACE INTO failed_operations 
         (id, operation_type, function_name, args, kwargs, 
          error_message, attempts, created_at, failed_at)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
@@ -436,13 +441,26 @@ export class RetryManager {
   private circuitBreakers: Map<string, CircuitBreaker>;
 
   constructor(
-    defaultConfig: RetryConfig,
-    circuitBreakerConfig: CircuitBreakerConfig,
+    defaultConfig?: RetryConfig,
+    circuitBreakerConfig?: CircuitBreakerConfig,
     deadLetterQueue?: DeadLetterQueue
   ) {
-    this.validateRetryConfig(defaultConfig);
-    this.defaultConfig = defaultConfig;
-    this.circuitBreakerConfig = circuitBreakerConfig;
+    // Provide default configurations if none provided
+    this.defaultConfig = defaultConfig || {
+      maxAttempts: 3,
+      baseDelay: 1.0,
+      maxDelay: 30.0,
+      backoffStrategy: BackoffStrategy.EXPONENTIAL,
+      jitterRange: 0.1
+    };
+    
+    this.circuitBreakerConfig = circuitBreakerConfig || {
+      failureThreshold: 5,
+      recoveryTimeout: 60,
+      monitoringWindow: 120
+    };
+    
+    this.validateRetryConfig(this.defaultConfig);
     this.deadLetterQueue = deadLetterQueue || new DeadLetterQueue();
     this.errorClassifier = new ErrorClassifier();
     this.metrics = new RetryMetrics();

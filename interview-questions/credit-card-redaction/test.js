@@ -1,5 +1,5 @@
 // Jest tests for Credit Card Redaction solution
-const { CreditCardRedactor } = require('./solution');
+const { CreditCardRedactor } = require('./my-solution');
 
 describe('Credit Card Redaction', () => {
   let redactor;
