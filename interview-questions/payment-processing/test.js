@@ -1,104 +1,401 @@
-// Test for Payment Processing solution
+// Jest tests for Payment Processing solution
 const { PaymentService, PaymentError, InvalidPaymentMethodError, InsufficientFundsError, FraudDetectedError } = require('./solution');
 
-console.log('🧪 Testing Payment Processing Solution\n');
+describe('Payment Processing', () => {
+  let paymentService;
 
-// Helper function to test payment operations
-async function testPayment(service, operation, testName) {
-    console.log(`${testName}:`);
-    try {
-        const result = await operation();
-        console.log(`✅ Success:`, result);
-    } catch (error) {
-        console.log(`❌ Error: ${error.message}`);
-        console.log(`Error type: ${error.constructor.name}`);
-    }
-    console.log('');
-}
+  beforeEach(() => {
+    paymentService = new PaymentService();
+  });
 
-// Test 1: Create payment service
-console.log('1️⃣ Create payment service');
-const paymentService = new PaymentService();
-console.log('✅ PaymentService created successfully');
-console.log('');
+  describe('Payment Service Creation', () => {
+    test('should create PaymentService successfully', () => {
+      expect(paymentService).toBeDefined();
+      expect(paymentService).toBeInstanceOf(PaymentService);
+    });
+  });
 
-// Test 2: Valid payment creation
-console.log('2️⃣ Valid payment creation');
-const validPayment = {
-    amount: 1000, // $10.00
-    currency: 'USD',
-    customer_id: 'cus_1234567890',
-    payment_method: 'card_1234',
-    description: 'Test payment'
-};
+  describe('Error Classes', () => {
+    test('should create PaymentError correctly', () => {
+      const error = new PaymentError('Payment failed');
+      expect(error).toBeInstanceOf(Error);
+      expect(error.message).toBe('Payment failed');
+    });
 
-await testPayment(paymentService, async () => {
-    return await paymentService.createPayment(validPayment);
-}, 'Valid payment creation');
+    test('should create InvalidPaymentMethodError correctly', () => {
+      const error = new InvalidPaymentMethodError('Invalid payment method');
+      expect(error).toBeInstanceOf(PaymentError);
+      expect(error.message).toBe('Invalid payment method');
+    });
 
-// Test 3: Invalid payment method
-console.log('3️⃣ Invalid payment method');
-const invalidPaymentMethod = {
-    ...validPayment,
-    payment_method: 'invalid_method'
-};
+    test('should create InsufficientFundsError correctly', () => {
+      const error = new InsufficientFundsError('Insufficient funds');
+      expect(error).toBeInstanceOf(PaymentError);
+      expect(error.message).toBe('Insufficient funds');
+    });
 
-await testPayment(paymentService, async () => {
-    return await paymentService.createPayment(invalidPaymentMethod);
-}, 'Invalid payment method');
+    test('should create FraudDetectedError correctly', () => {
+      const error = new FraudDetectedError('Fraud detected');
+      expect(error).toBeInstanceOf(PaymentError);
+      expect(error.message).toBe('Fraud detected');
+    });
+  });
 
-// Test 4: Insufficient funds
-console.log('4️⃣ Insufficient funds');
-const insufficientFundsPayment = {
-    ...validPayment,
-    amount: 1000000 // $10,000.00 - likely to trigger insufficient funds
-};
+  describe('Payment Creation', () => {
+    test('should create payment successfully', async () => {
+      const paymentData = {
+        amount: 1000,
+        currency: 'USD',
+        payment_method: 'credit_card',
+        customer_id: 'cus_test123',
+        description: 'Test payment'
+      };
 
-await testPayment(paymentService, async () => {
-    return await paymentService.createPayment(insufficientFundsPayment);
-}, 'Insufficient funds');
+      const payment = await paymentService.createPayment(paymentData);
+      expect(payment).toBeDefined();
+      expect(payment.id).toBeDefined();
+      expect(payment.status).toBe('pending');
+      expect(payment.amount).toBe(1000);
+    });
 
-// Test 5: Fraud detection
-console.log('5️⃣ Fraud detection');
-const suspiciousPayment = {
-    ...validPayment,
-    amount: 50000, // $500.00 - might trigger fraud detection
-    customer_id: 'cus_suspicious'
-};
+    test('should validate payment data', async () => {
+      const invalidPaymentData = {
+        amount: -100, // Invalid amount
+        currency: 'USD',
+        payment_method: 'credit_card',
+        customer_id: 'cus_test123'
+      };
 
-await testPayment(paymentService, async () => {
-    return await paymentService.createPayment(suspiciousPayment);
-}, 'Fraud detection');
+      await expect(paymentService.createPayment(invalidPaymentData)).rejects.toThrow(PaymentError);
+    });
 
-// Test 6: Payment authorization
-console.log('6️⃣ Payment authorization');
-await testPayment(paymentService, async () => {
-    const payment = await paymentService.createPayment(validPayment);
-    return await paymentService.authorizePayment(payment.id);
-}, 'Payment authorization');
+    test('should handle missing required fields', async () => {
+      const incompletePaymentData = {
+        amount: 1000,
+        currency: 'USD'
+        // Missing payment_method and customer_id
+      };
 
-// Test 7: Payment capture
-console.log('7️⃣ Payment capture');
-await testPayment(paymentService, async () => {
-    const payment = await paymentService.createPayment(validPayment);
-    await paymentService.authorizePayment(payment.id);
-    return await paymentService.capturePayment(payment.id, 500); // Capture $5.00
-}, 'Payment capture');
+      await expect(paymentService.createPayment(incompletePaymentData)).rejects.toThrow(PaymentError);
+    });
+  });
 
-// Test 8: Payment refund
-console.log('8️⃣ Payment refund');
-await testPayment(paymentService, async () => {
-    const payment = await paymentService.createPayment(validPayment);
-    await paymentService.authorizePayment(payment.id);
-    await paymentService.capturePayment(payment.id, 1000);
-    return await paymentService.refundPayment(payment.id, 500); // Refund $5.00
-}, 'Payment refund');
+  describe('Payment Processing', () => {
+    test('should process payment successfully', async () => {
+      const paymentData = {
+        amount: 1000,
+        currency: 'USD',
+        payment_method: 'credit_card',
+        customer_id: 'cus_test123',
+        description: 'Test payment'
+      };
 
-// Test 9: Payment cancellation
-console.log('9️⃣ Payment cancellation');
-await testPayment(paymentService, async () => {
-    const payment = await paymentService.createPayment(validPayment);
-    return await paymentService.cancelPayment(payment.id);
-}, 'Payment cancellation');
+      const payment = await paymentService.createPayment(paymentData);
+      const result = await paymentService.processPayment(payment.id);
 
-console.log('🎉 Payment processing tests completed!');
+      expect(result.status).toBe('succeeded');
+    });
+
+    test('should handle payment failures', async () => {
+      const paymentData = {
+        amount: 1000,
+        currency: 'USD',
+        payment_method: 'invalid_method',
+        customer_id: 'cus_test123',
+        description: 'Test payment'
+      };
+
+      const payment = await paymentService.createPayment(paymentData);
+      await expect(paymentService.processPayment(payment.id)).rejects.toThrow(InvalidPaymentMethodError);
+    });
+  });
+
+  describe('Payment Authorization', () => {
+    test('should authorize payment', async () => {
+      const paymentData = {
+        amount: 1000,
+        currency: 'USD',
+        payment_method: 'credit_card',
+        customer_id: 'cus_test123',
+        description: 'Test payment'
+      };
+
+      const payment = await paymentService.createPayment(paymentData);
+      const result = await paymentService.authorizePayment(payment.id);
+
+      expect(result.status).toBe('authorized');
+    });
+
+    test('should handle authorization failures', async () => {
+      const paymentData = {
+        amount: 1000000, // Very large amount
+        currency: 'USD',
+        payment_method: 'credit_card',
+        customer_id: 'cus_test123',
+        description: 'Test payment'
+      };
+
+      const payment = await paymentService.createPayment(paymentData);
+      await expect(paymentService.authorizePayment(payment.id)).rejects.toThrow();
+    });
+  });
+
+  describe('Payment Capture', () => {
+    test('should capture authorized payment', async () => {
+      const paymentData = {
+        amount: 1000,
+        currency: 'USD',
+        payment_method: 'credit_card',
+        customer_id: 'cus_test123',
+        description: 'Test payment'
+      };
+
+      const payment = await paymentService.createPayment(paymentData);
+      await paymentService.authorizePayment(payment.id);
+      const result = await paymentService.capturePayment(payment.id);
+
+      expect(result.status).toBe('succeeded');
+    });
+
+    test('should handle capture of non-authorized payment', async () => {
+      const paymentData = {
+        amount: 1000,
+        currency: 'USD',
+        payment_method: 'credit_card',
+        customer_id: 'cus_test123',
+        description: 'Test payment'
+      };
+
+      const payment = await paymentService.createPayment(paymentData);
+      await expect(paymentService.capturePayment(payment.id)).rejects.toThrow(PaymentError);
+    });
+  });
+
+  describe('Payment Refund', () => {
+    test('should refund successful payment', async () => {
+      const paymentData = {
+        amount: 1000,
+        currency: 'USD',
+        payment_method: 'credit_card',
+        customer_id: 'cus_test123',
+        description: 'Test payment'
+      };
+
+      const payment = await paymentService.createPayment(paymentData);
+      await paymentService.processPayment(payment.id);
+      const result = await paymentService.refundPayment(payment.id, 500);
+
+      expect(result.status).toBe('refunded');
+      expect(result.refunded_amount).toBe(500);
+    });
+
+    test('should handle full refund', async () => {
+      const paymentData = {
+        amount: 1000,
+        currency: 'USD',
+        payment_method: 'credit_card',
+        customer_id: 'cus_test123',
+        description: 'Test payment'
+      };
+
+      const payment = await paymentService.createPayment(paymentData);
+      await paymentService.processPayment(payment.id);
+      const result = await paymentService.refundPayment(payment.id);
+
+      expect(result.status).toBe('refunded');
+      expect(result.refunded_amount).toBe(1000);
+    });
+
+    test('should handle refund of non-successful payment', async () => {
+      const paymentData = {
+        amount: 1000,
+        currency: 'USD',
+        payment_method: 'credit_card',
+        customer_id: 'cus_test123',
+        description: 'Test payment'
+      };
+
+      const payment = await paymentService.createPayment(paymentData);
+      await expect(paymentService.refundPayment(payment.id)).rejects.toThrow(PaymentError);
+    });
+  });
+
+  describe('Payment Cancellation', () => {
+    test('should cancel pending payment', async () => {
+      const paymentData = {
+        amount: 1000,
+        currency: 'USD',
+        payment_method: 'credit_card',
+        customer_id: 'cus_test123',
+        description: 'Test payment'
+      };
+
+      const payment = await paymentService.createPayment(paymentData);
+      const result = await paymentService.cancelPayment(payment.id);
+
+      expect(result.status).toBe('cancelled');
+    });
+
+    test('should handle cancellation of processed payment', async () => {
+      const paymentData = {
+        amount: 1000,
+        currency: 'USD',
+        payment_method: 'credit_card',
+        customer_id: 'cus_test123',
+        description: 'Test payment'
+      };
+
+      const payment = await paymentService.createPayment(paymentData);
+      await paymentService.processPayment(payment.id);
+      await expect(paymentService.cancelPayment(payment.id)).rejects.toThrow(PaymentError);
+    });
+  });
+
+  describe('Fraud Detection', () => {
+    test('should detect high-risk payments', async () => {
+      const paymentData = {
+        amount: 1000,
+        currency: 'USD',
+        payment_method: 'credit_card',
+        customer_id: 'cus_test123',
+        description: 'Test payment',
+        metadata: {
+          risk_score: 0.9 // High risk
+        }
+      };
+
+      const payment = await paymentService.createPayment(paymentData);
+      await expect(paymentService.processPayment(payment.id)).rejects.toThrow(FraudDetectedError);
+    });
+
+    test('should allow low-risk payments', async () => {
+      const paymentData = {
+        amount: 1000,
+        currency: 'USD',
+        payment_method: 'credit_card',
+        customer_id: 'cus_test123',
+        description: 'Test payment',
+        metadata: {
+          risk_score: 0.1 // Low risk
+        }
+      };
+
+      const payment = await paymentService.createPayment(paymentData);
+      const result = await paymentService.processPayment(payment.id);
+
+      expect(result.status).toBe('succeeded');
+    });
+  });
+
+  describe('Payment Methods', () => {
+    test('should handle credit card payments', async () => {
+      const paymentData = {
+        amount: 1000,
+        currency: 'USD',
+        payment_method: 'credit_card',
+        customer_id: 'cus_test123',
+        description: 'Test payment'
+      };
+
+      const payment = await paymentService.createPayment(paymentData);
+      expect(payment.payment_method).toBe('credit_card');
+    });
+
+    test('should handle bank transfer payments', async () => {
+      const paymentData = {
+        amount: 1000,
+        currency: 'USD',
+        payment_method: 'bank_transfer',
+        customer_id: 'cus_test123',
+        description: 'Test payment'
+      };
+
+      const payment = await paymentService.createPayment(paymentData);
+      expect(payment.payment_method).toBe('bank_transfer');
+    });
+
+    test('should reject invalid payment methods', async () => {
+      const paymentData = {
+        amount: 1000,
+        currency: 'USD',
+        payment_method: 'invalid_method',
+        customer_id: 'cus_test123',
+        description: 'Test payment'
+      };
+
+      await expect(paymentService.createPayment(paymentData)).rejects.toThrow(InvalidPaymentMethodError);
+    });
+  });
+
+  describe('Currency Support', () => {
+    test('should handle multiple currencies', async () => {
+      const currencies = ['USD', 'EUR', 'GBP', 'JPY'];
+
+      for (const currency of currencies) {
+        const paymentData = {
+          amount: 1000,
+          currency: currency,
+          payment_method: 'credit_card',
+          customer_id: 'cus_test123',
+          description: 'Test payment'
+        };
+
+        const payment = await paymentService.createPayment(paymentData);
+        expect(payment.currency).toBe(currency);
+      }
+    });
+
+    test('should reject unsupported currencies', async () => {
+      const paymentData = {
+        amount: 1000,
+        currency: 'INVALID',
+        payment_method: 'credit_card',
+        customer_id: 'cus_test123',
+        description: 'Test payment'
+      };
+
+      await expect(paymentService.createPayment(paymentData)).rejects.toThrow(PaymentError);
+    });
+  });
+
+  describe('Payment Retrieval', () => {
+    test('should retrieve payment by ID', async () => {
+      const paymentData = {
+        amount: 1000,
+        currency: 'USD',
+        payment_method: 'credit_card',
+        customer_id: 'cus_test123',
+        description: 'Test payment'
+      };
+
+      const createdPayment = await paymentService.createPayment(paymentData);
+      const retrievedPayment = await paymentService.getPayment(createdPayment.id);
+
+      expect(retrievedPayment.id).toBe(createdPayment.id);
+      expect(retrievedPayment.amount).toBe(1000);
+    });
+
+    test('should handle non-existent payment', async () => {
+      await expect(paymentService.getPayment('non_existent_id')).rejects.toThrow(PaymentError);
+    });
+  });
+
+  describe('Payment History', () => {
+    test('should retrieve customer payment history', async () => {
+      const customerId = 'cus_test123';
+      const paymentData = {
+        amount: 1000,
+        currency: 'USD',
+        payment_method: 'credit_card',
+        customer_id: customerId,
+        description: 'Test payment'
+      };
+
+      await paymentService.createPayment(paymentData);
+      const history = await paymentService.getCustomerPayments(customerId);
+
+      expect(Array.isArray(history)).toBe(true);
+      expect(history.length).toBeGreaterThan(0);
+    });
+  });
+});

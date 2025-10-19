@@ -1,196 +1,274 @@
-// Test for Data Validation solution
+// Jest tests for Data Validation solution
 const { DataValidator, ValidationError } = require('./solution');
 
-console.log('🧪 Testing Data Validation Solution\n');
+describe('Data Validation', () => {
+  let validator;
 
-// Helper function to compare validation results
-function testValidation(validator, data, schema, expectedValid, testName) {
-    const result = validator.validate(data, schema);
-    const passed = result.isValid === expectedValid;
-    console.log(`${testName}:`);
-    console.log(`Data:`, data);
-    console.log(`Valid: ${result.isValid} (expected: ${expectedValid})`);
-    if (!result.isValid) {
-        console.log(`Errors:`, result.errors);
-    }
-    console.log(passed ? '✅ PASS' : '❌ FAIL');
-    console.log('');
-    return passed;
-}
+  beforeEach(() => {
+    validator = new DataValidator();
+  });
 
-// Define schemas
-const paymentSchema = {
-  type: "object",
-  required: true,
-  properties: {
-    amount: {
-      type: "integer",
-      required: true,
-      min: 1,
-      max: 10000000
-    },
-    currency: {
-      type: "string",
-      required: true,
-      enum: ["USD", "EUR", "GBP", "JPY", "CAD", "AUD"]
-    },
-    customer_id: {
-      type: "string",
-      required: true,
-      pattern: "^cus_[a-zA-Z0-9]+$"
-    },
-    payment_method: {
-      type: "string",
-      required: true,
-      enum: ["credit_card", "bank_transfer", "digital_wallet"]
-    },
-    payment_method_details: {
-      type: "object",
-      required: true,
-      properties: {
-        card: {
-          type: "object",
+  describe('Basic Validation', () => {
+    test('should validate required fields', () => {
+      const schema = {
+        name: { type: 'string', required: true },
+        age: { type: 'number', required: true }
+      };
+
+      const validData = { name: 'John', age: 30 };
+      const invalidData = { name: 'John' }; // missing age
+
+      expect(validator.validate(validData, schema).isValid).toBe(true);
+      expect(validator.validate(invalidData, schema).isValid).toBe(false);
+    });
+
+    test('should validate data types', () => {
+      const schema = {
+        name: { type: 'string' },
+        age: { type: 'number' },
+        active: { type: 'boolean' }
+      };
+
+      const validData = { name: 'John', age: 30, active: true };
+      const invalidData = { name: 123, age: 'thirty', active: 'yes' };
+
+      expect(validator.validate(validData, schema).isValid).toBe(true);
+      expect(validator.validate(invalidData, schema).isValid).toBe(false);
+    });
+  });
+
+  describe('String Validation', () => {
+    test('should validate string length constraints', () => {
+      const schema = {
+        name: { type: 'string', minLength: 2, maxLength: 10 }
+      };
+
+      const validData = { name: 'John' };
+      const tooShort = { name: 'J' };
+      const tooLong = { name: 'VeryLongName' };
+
+      expect(validator.validate(validData, schema).isValid).toBe(true);
+      expect(validator.validate(tooShort, schema).isValid).toBe(false);
+      expect(validator.validate(tooLong, schema).isValid).toBe(false);
+    });
+
+    test('should validate string patterns', () => {
+      const schema = {
+        email: { type: 'string', pattern: /^[^\s@]+@[^\s@]+\.[^\s@]+$/ }
+      };
+
+      const validData = { email: 'test@example.com' };
+      const invalidData = { email: 'invalid-email' };
+
+      expect(validator.validate(validData, schema).isValid).toBe(true);
+      expect(validator.validate(invalidData, schema).isValid).toBe(false);
+    });
+  });
+
+  describe('Number Validation', () => {
+    test('should validate number ranges', () => {
+      const schema = {
+        age: { type: 'number', min: 18, max: 65 }
+      };
+
+      const validData = { age: 30 };
+      const tooLow = { age: 16 };
+      const tooHigh = { age: 70 };
+
+      expect(validator.validate(validData, schema).isValid).toBe(true);
+      expect(validator.validate(tooLow, schema).isValid).toBe(false);
+      expect(validator.validate(tooHigh, schema).isValid).toBe(false);
+    });
+  });
+
+  describe('Payment Data Validation', () => {
+    test('should validate payment amount', () => {
+      const schema = {
+        amount: { type: 'number', min: 1, max: 10000000 }
+      };
+
+      const validData = { amount: 1000 };
+      const invalidData = { amount: 0 };
+
+      expect(validator.validate(validData, schema).isValid).toBe(true);
+      expect(validator.validate(invalidData, schema).isValid).toBe(false);
+    });
+
+    test('should validate currency codes', () => {
+      const schema = {
+        currency: { type: 'string', enum: ['USD', 'EUR', 'GBP', 'JPY'] }
+      };
+
+      const validData = { currency: 'USD' };
+      const invalidData = { currency: 'INVALID' };
+
+      expect(validator.validate(validData, schema).isValid).toBe(true);
+      expect(validator.validate(invalidData, schema).isValid).toBe(false);
+    });
+
+    test('should validate customer ID format', () => {
+      const schema = {
+        customer_id: { type: 'string', pattern: /^cus_[a-zA-Z0-9]+$/ }
+      };
+
+      const validData = { customer_id: 'cus_1234567890' };
+      const invalidData = { customer_id: 'invalid_id' };
+
+      expect(validator.validate(validData, schema).isValid).toBe(true);
+      expect(validator.validate(invalidData, schema).isValid).toBe(false);
+    });
+  });
+
+  describe('Credit Card Validation', () => {
+    test('should validate credit card numbers with Luhn algorithm', () => {
+      const schema = {
+        card_number: { type: 'credit_card' }
+      };
+
+      const validData = { card_number: '4532015112830366' };
+      const invalidData = { card_number: '1234567890123456' };
+
+      expect(validator.validate(validData, schema).isValid).toBe(true);
+      expect(validator.validate(invalidData, schema).isValid).toBe(false);
+    });
+
+    test('should validate card expiration', () => {
+      const schema = {
+        exp_month: { type: 'number', min: 1, max: 12 },
+        exp_year: { type: 'number', min: 2023 }
+      };
+
+      const validData = { exp_month: 12, exp_year: 2025 };
+      const invalidData = { exp_month: 13, exp_year: 2020 };
+
+      expect(validator.validate(validData, schema).isValid).toBe(true);
+      expect(validator.validate(invalidData, schema).isValid).toBe(false);
+    });
+  });
+
+  describe('Nested Object Validation', () => {
+    test('should validate nested objects', () => {
+      const schema = {
+        customer: {
+          type: 'object',
           properties: {
-            number: {
-              type: "credit_card",
-              required: true
-            },
-            exp_month: {
-              type: "integer",
-              required: true,
-              min: 1,
-              max: 12
-            },
-            exp_year: {
-              type: "integer",
-              required: true,
-              min: 2023
+            name: { type: 'string', required: true },
+            email: { type: 'string', pattern: /^[^\s@]+@[^\s@]+\.[^\s@]+$/ }
+          }
+        }
+      };
+
+      const validData = {
+        customer: { name: 'John Doe', email: 'john@example.com' }
+      };
+      const invalidData = {
+        customer: { name: 'John Doe', email: 'invalid-email' }
+      };
+
+      expect(validator.validate(validData, schema).isValid).toBe(true);
+      expect(validator.validate(invalidData, schema).isValid).toBe(false);
+    });
+  });
+
+  describe('Array Validation', () => {
+    test('should validate arrays', () => {
+      const schema = {
+        items: { type: 'array', minItems: 1, maxItems: 5 }
+      };
+
+      const validData = { items: ['item1', 'item2'] };
+      const emptyArray = { items: [] };
+      const tooManyItems = { items: ['1', '2', '3', '4', '5', '6'] };
+
+      expect(validator.validate(validData, schema).isValid).toBe(true);
+      expect(validator.validate(emptyArray, schema).isValid).toBe(false);
+      expect(validator.validate(tooManyItems, schema).isValid).toBe(false);
+    });
+  });
+
+  describe('Error Handling', () => {
+    test('should provide detailed error messages', () => {
+      const schema = {
+        name: { type: 'string', required: true, minLength: 2 },
+        age: { type: 'number', min: 18 }
+      };
+
+      const invalidData = { name: 'J', age: 16 };
+      const result = validator.validate(invalidData, schema);
+
+      expect(result.isValid).toBe(false);
+      expect(result.errors).toHaveLength(2);
+      expect(result.errors[0]).toContain('minimum length');
+      expect(result.errors[1]).toContain('minimum value');
+    });
+
+    test('should handle validation errors gracefully', () => {
+      expect(() => {
+        validator.validate(null, {});
+      }).not.toThrow();
+    });
+  });
+
+  describe('Custom Validators', () => {
+    test('should support custom validation functions', () => {
+      const schema = {
+        password: {
+          type: 'string',
+          custom: (value) => {
+            if (value.length < 8) return 'Password must be at least 8 characters';
+            if (!/[A-Z]/.test(value)) return 'Password must contain uppercase letter';
+            if (!/[0-9]/.test(value)) return 'Password must contain number';
+            return null;
+          }
+        }
+      };
+
+      const validData = { password: 'SecurePass123' };
+      const invalidData = { password: 'weak' };
+
+      expect(validator.validate(validData, schema).isValid).toBe(true);
+      expect(validator.validate(invalidData, schema).isValid).toBe(false);
+    });
+  });
+
+  describe('Complex Payment Schema', () => {
+    test('should validate complete payment data', () => {
+      const paymentSchema = {
+        amount: { type: 'number', min: 1, max: 10000000, required: true },
+        currency: { type: 'string', enum: ['USD', 'EUR', 'GBP'], required: true },
+        customer_id: { type: 'string', pattern: /^cus_[a-zA-Z0-9]+$/, required: true },
+        payment_method: { type: 'string', enum: ['credit_card', 'bank_transfer'], required: true },
+        payment_method_details: {
+          type: 'object',
+          required: true,
+          properties: {
+            card: {
+              type: 'object',
+              properties: {
+                number: { type: 'credit_card' },
+                exp_month: { type: 'number', min: 1, max: 12 },
+                exp_year: { type: 'number', min: 2023 }
+              }
             }
           }
         }
-      }
-    }
-  }
-};
+      };
 
-const customerSchema = {
-  type: "object",
-  required: true,
-  properties: {
-    email: {
-      type: "email",
-      required: true
-    },
-    name: {
-      type: "string",
-      required: true,
-      min_length: 1,
-      max_length: 100
-    },
-    phone: {
-      type: "phone",
-      required: false
-    },
-    address: {
-      type: "object",
-      required: true,
-      properties: {
-        line1: {
-          type: "string",
-          required: true,
-          min_length: 1
-        },
-        city: {
-          type: "string",
-          required: true,
-          min_length: 1
-        },
-        state: {
-          type: "string",
-          required: true,
-          min_length: 2,
-          max_length: 2
-        },
-        postal_code: {
-          type: "string",
-          required: true,
-          pattern: "^\\d{5}(-\\d{4})?$"
-        },
-        country: {
-          type: "string",
-          required: true,
-          enum: ["US", "CA", "GB", "DE", "FR"]
+      const validPayment = {
+        amount: 1000,
+        currency: 'USD',
+        customer_id: 'cus_1234567890',
+        payment_method: 'credit_card',
+        payment_method_details: {
+          card: {
+            number: '4532015112830366',
+            exp_month: 12,
+            exp_year: 2025
+          }
         }
-      }
-    }
-  }
-};
+      };
 
-// Test 1: Valid payment data
-console.log('1️⃣ Valid payment data');
-const validator = new DataValidator();
-const validPayment = {
-  amount: 1000,
-  currency: "USD",
-  customer_id: "cus_1234567890",
-  payment_method: "credit_card",
-  payment_method_details: {
-    card: {
-      number: "4242424242424242",
-      exp_month: 12,
-      exp_year: 2025
-    }
-  }
-};
-testValidation(validator, validPayment, paymentSchema, true, 'Valid payment');
-
-// Test 2: Invalid payment data
-console.log('2️⃣ Invalid payment data');
-const invalidPayment = {
-  amount: -100, // Invalid amount
-  currency: "INVALID", // Invalid currency
-  customer_id: "invalid_id", // Invalid format
-  payment_method: "credit_card",
-  payment_method_details: {
-    card: {
-      number: "1234567890123456", // Invalid card number
-      exp_month: 13, // Invalid month
-      exp_year: 2020 // Expired year
-    }
-  }
-};
-testValidation(validator, invalidPayment, paymentSchema, false, 'Invalid payment');
-
-// Test 3: Valid customer data
-console.log('3️⃣ Valid customer data');
-const validCustomer = {
-  email: "test@example.com",
-  name: "John Doe",
-  phone: "+1-555-123-4567",
-  address: {
-    line1: "123 Main St",
-    city: "San Francisco",
-    state: "CA",
-    postal_code: "94105",
-    country: "US"
-  }
-};
-testValidation(validator, validCustomer, customerSchema, true, 'Valid customer');
-
-// Test 4: Invalid customer data
-console.log('4️⃣ Invalid customer data');
-const invalidCustomer = {
-  email: "invalid-email", // Invalid email
-  name: "", // Empty name
-  phone: "invalid-phone", // Invalid phone
-  address: {
-    line1: "", // Empty address
-    city: "San Francisco",
-    state: "California", // Invalid state format
-    postal_code: "invalid", // Invalid postal code
-    country: "INVALID" // Invalid country
-  }
-};
-testValidation(validator, invalidCustomer, customerSchema, false, 'Invalid customer');
-
-console.log('🎉 Data validation tests completed!');
+      expect(validator.validate(validPayment, paymentSchema).isValid).toBe(true);
+    });
+  });
+});

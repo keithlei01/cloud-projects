@@ -1,96 +1,79 @@
-// Simple test for API Integration solution
+// Jest tests for API Integration solution
 const { PaymentAPIClient, APIError, APIRateLimitError, APIAuthenticationError } = require('./solution');
 
-console.log('🧪 Testing API Integration Solution\n');
+describe('API Integration', () => {
+  let client;
 
-// Test 1: Create API Client
-console.log('1️⃣ Testing PaymentAPIClient creation');
-try {
+  beforeEach(() => {
     const config = {
-        baseUrl: 'https://api.payment-service.com',
-        apiKey: 'test_api_key_12345',
-        timeout: 5000,
-        maxRetries: 3,
-        retryBackoffFactor: 2,
-        rateLimitRequests: 100,
-        rateLimitWindow: 60
+      baseUrl: 'https://api.payment-service.com',
+      apiKey: 'test_api_key_12345',
+      timeout: 5000,
+      maxRetries: 3,
+      retryBackoffFactor: 2,
+      rateLimitRequests: 100,
+      rateLimitWindow: 60
     };
-    
-    const client = new PaymentAPIClient(config);
-    console.log('✅ PaymentAPIClient created successfully');
-    console.log('Config:', config);
-} catch (error) {
-    console.log('❌ Error creating client:', error.message);
-}
-console.log('');
+    client = new PaymentAPIClient(config);
+  });
 
-// Test 2: Test error classes
-console.log('2️⃣ Testing error classes');
-try {
-    const apiError = new APIError('Test error', 'network_error');
-    console.log('✅ APIError created:', apiError.message);
-    
-    const rateLimitError = new APIRateLimitError('Rate limited', 30);
-    console.log('✅ APIRateLimitError created:', rateLimitError.message, 'Retry after:', rateLimitError.retryAfter);
-    
-    const authError = new APIAuthenticationError('Invalid credentials');
-    console.log('✅ APIAuthenticationError created:', authError.message);
-} catch (error) {
-    console.log('❌ Error creating error classes:', error.message);
-}
-console.log('');
+  describe('Client Creation', () => {
+    test('should create PaymentAPIClient successfully', () => {
+      expect(client).toBeDefined();
+      expect(client).toBeInstanceOf(PaymentAPIClient);
+    });
 
-// Test 3: Test API methods (will fail due to network, but shows structure)
-console.log('3️⃣ Testing API methods');
-try {
-    const config = {
-        baseUrl: 'https://api.payment-service.com',
-        apiKey: 'test_api_key_12345',
-        timeout: 1000, // Short timeout for quick test
-        maxRetries: 1,
-        retryBackoffFactor: 2,
-        rateLimitRequests: 100,
-        rateLimitWindow: 60
-    };
-    
-    const client = new PaymentAPIClient(config);
-    
-    // Test getTransaction (will fail due to network)
-    console.log('Testing getTransaction...');
-    client.getTransaction('txn_test123')
-        .then(result => {
-            console.log('✅ getTransaction result:', result);
-        })
-        .catch(error => {
-            console.log('⚠️  getTransaction failed (expected):', error.message);
-        });
-    
-    // Test createTransaction (will fail due to network)
-    console.log('Testing createTransaction...');
-    const transactionData = {
-        amount: 2500,
-        currency: 'USD',
-        customer_id: 'cus_test123',
-        payment_method: 'card_1234'
-    };
-    
-    client.createTransaction(transactionData)
-        .then(result => {
-            console.log('✅ createTransaction result:', result);
-        })
-        .catch(error => {
-            console.log('⚠️  createTransaction failed (expected):', error.message);
-        });
-        
-} catch (error) {
-    console.log('❌ Error testing API methods:', error.message);
-}
-console.log('');
+    test('should handle invalid configuration', () => {
+      expect(() => {
+        new PaymentAPIClient({});
+      }).toThrow();
+    });
+  });
 
-// Test 4: Test error handling
-console.log('4️⃣ Testing error handling');
-try {
-    const config = {
+  describe('Error Classes', () => {
+    test('should create APIError correctly', () => {
+      const error = new APIError('Test error', 'network_error');
+      expect(error).toBeInstanceOf(Error);
+      expect(error.message).toBe('Test error');
+      expect(error.type).toBe('network_error');
+    });
+
+    test('should create APIRateLimitError correctly', () => {
+      const error = new APIRateLimitError('Rate limited', 30);
+      expect(error).toBeInstanceOf(APIError);
+      expect(error.message).toBe('Rate limited');
+      expect(error.retryAfter).toBe(30);
+    });
+
+    test('should create APIAuthenticationError correctly', () => {
+      const error = new APIAuthenticationError('Invalid credentials');
+      expect(error).toBeInstanceOf(APIError);
+      expect(error.message).toBe('Invalid credentials');
+      expect(error.type).toBe('authentication_error');
+    });
+  });
+
+  describe('API Methods', () => {
+    test('should have getTransaction method', () => {
+      expect(typeof client.getTransaction).toBe('function');
+    });
+
+    test('should have createTransaction method', () => {
+      expect(typeof client.createTransaction).toBe('function');
+    });
+
+    test('should have updateTransaction method', () => {
+      expect(typeof client.updateTransaction).toBe('function');
+    });
+
+    test('should have deleteTransaction method', () => {
+      expect(typeof client.deleteTransaction).toBe('function');
+    });
+  });
+
+  describe('Error Handling', () => {
+    test('should handle network errors gracefully', async () => {
+      const invalidClient = new PaymentAPIClient({
         baseUrl: 'https://invalid-url-that-does-not-exist.com',
         apiKey: 'test_key',
         timeout: 1000,
@@ -98,23 +81,94 @@ try {
         retryBackoffFactor: 2,
         rateLimitRequests: 100,
         rateLimitWindow: 60
-    };
-    
-    const client = new PaymentAPIClient(config);
-    
-    // This should fail gracefully
-    client.getTransaction('txn_test')
-        .then(result => {
-            console.log('Unexpected success:', result);
-        })
-        .catch(error => {
-            console.log('✅ Error handled gracefully:', error.message);
-        });
-        
-} catch (error) {
-    console.log('❌ Error in error handling test:', error.message);
-}
-console.log('');
+      });
 
-console.log('🎉 API Integration tests completed!');
-console.log('Note: Network calls will fail as expected since we\'re using test URLs');
+      await expect(invalidClient.getTransaction('txn_test')).rejects.toThrow();
+    });
+
+    test('should handle timeout errors', async () => {
+      const timeoutClient = new PaymentAPIClient({
+        baseUrl: 'https://httpstat.us/200?sleep=5000',
+        apiKey: 'test_key',
+        timeout: 1000,
+        maxRetries: 1,
+        retryBackoffFactor: 2,
+        rateLimitRequests: 100,
+        rateLimitWindow: 60
+      });
+
+      await expect(timeoutClient.getTransaction('txn_test')).rejects.toThrow();
+    });
+  });
+
+  describe('Configuration', () => {
+    test('should accept valid configuration', () => {
+      const config = {
+        baseUrl: 'https://api.example.com',
+        apiKey: 'sk_test_123',
+        timeout: 30000,
+        maxRetries: 5,
+        retryBackoffFactor: 1.5,
+        rateLimitRequests: 1000,
+        rateLimitWindow: 3600
+      };
+
+      expect(() => new PaymentAPIClient(config)).not.toThrow();
+    });
+
+    test('should use default values for missing configuration', () => {
+      const minimalConfig = {
+        baseUrl: 'https://api.example.com',
+        apiKey: 'sk_test_123'
+      };
+
+      expect(() => new PaymentAPIClient(minimalConfig)).not.toThrow();
+    });
+  });
+
+  describe('Rate Limiting', () => {
+    test('should track rate limit headers', () => {
+      // This would be tested with actual API responses in integration tests
+      expect(client.rateLimiter).toBeDefined();
+    });
+  });
+
+  describe('Retry Logic', () => {
+    test('should have retry configuration', () => {
+      expect(client.config.maxRetries).toBeDefined();
+      expect(client.config.retryBackoffFactor).toBeDefined();
+    });
+
+    test('should implement exponential backoff', () => {
+      // This would be tested with actual retry scenarios
+      expect(typeof client.calculateRetryDelay).toBe('function');
+    });
+  });
+
+  describe('Request Building', () => {
+    test('should build correct request headers', () => {
+      const headers = client.buildHeaders();
+      expect(headers).toHaveProperty('Authorization');
+      expect(headers).toHaveProperty('Content-Type');
+      expect(headers['Content-Type']).toBe('application/json');
+    });
+
+    test('should include API key in headers', () => {
+      const headers = client.buildHeaders();
+      expect(headers.Authorization).toContain('test_api_key_12345');
+    });
+  });
+
+  describe('Response Handling', () => {
+    test('should parse JSON responses', () => {
+      const mockResponse = '{"success": true, "data": {"id": "txn_123"}}';
+      const parsed = client.parseResponse(mockResponse);
+      expect(parsed).toEqual({ success: true, data: { id: 'txn_123' } });
+    });
+
+    test('should handle malformed JSON', () => {
+      const malformedResponse = '{"invalid": json}';
+      expect(() => client.parseResponse(malformedResponse)).toThrow();
+    });
+  });
+});

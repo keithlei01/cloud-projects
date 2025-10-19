@@ -1,121 +1,322 @@
-// Test for Rate Limiting solution
+// Jest tests for Rate Limiting solution
 const { RateLimitManager, RateLimitError, RateLimitMiddleware, RateLimitAlgorithm } = require('./solution');
 
-async function runTests() {
-console.log('🧪 Testing Rate Limiting Solution\n');
+describe('Rate Limiting', () => {
+  let manager;
+  let testStorage;
 
-// Helper function to test rate limiting
-async function testRateLimit(manager, key, config, testName) {
-    console.log(`${testName}:`);
-    try {
-        const result = await manager.isAllowed(key, config);
-        console.log(`Allowed: ${result.allowed}`);
-        console.log(`Remaining: ${result.remaining}`);
-        console.log(`Limit: ${result.limit}`);
-        if (result.retryAfter) {
-            console.log(`Retry after: ${result.retryAfter} seconds`);
-        }
-        console.log('✅ Test completed');
-    } catch (error) {
-        console.log(`❌ Error: ${error.message}`);
-    }
-    console.log('');
-}
-
-// Test 1: Create rate limit manager
-console.log('1️⃣ Create rate limit manager');
-// Create a simple in-memory storage for testing
-class TestStorage {
-    constructor() {
+  beforeEach(() => {
+    // Create a simple in-memory storage for testing
+    class TestStorage {
+      constructor() {
         this.data = new Map();
-    }
-    async get(key) { return this.data.get(key); }
-    async set(key, data, ttl) { 
+      }
+      async get(key) { return this.data.get(key); }
+      async set(key, data, ttl) { 
         this.data.set(key, data);
         if (ttl) setTimeout(() => this.data.delete(key), ttl * 1000);
-    }
-    async increment(key, amount = 1) {
+      }
+      async increment(key, amount = 1) {
         const current = this.data.get(key) || { count: 0 };
         current.count += amount;
         this.data.set(key, current);
         return current.count;
-    }
-    async expire(key, ttl) {
+      }
+      async expire(key, ttl) {
         setTimeout(() => this.data.delete(key), ttl * 1000);
+      }
     }
-}
-const manager = new RateLimitManager(new TestStorage());
-console.log('✅ RateLimitManager created successfully');
-console.log('');
+    
+    testStorage = new TestStorage();
+    manager = new RateLimitManager(testStorage);
+  });
 
-// Test 2: Basic rate limiting
-console.log('2️⃣ Basic rate limiting');
-const config = {
-    limit: 5,
-    window: 60, // 60 seconds
-    algorithm: RateLimitAlgorithm.TOKEN_BUCKET,
-    costPerRequest: 1
-};
+  describe('Rate Limit Manager Creation', () => {
+    test('should create RateLimitManager successfully', () => {
+      expect(manager).toBeDefined();
+      expect(manager).toBeInstanceOf(RateLimitManager);
+    });
 
-await testRateLimit(manager, 'user1', config, 'Basic rate limiting');
+    test('should have storage access', () => {
+      expect(manager.getStorage()).toBe(testStorage);
+    });
+  });
 
-// Test 3: Multiple requests
-console.log('3️⃣ Multiple requests');
-for (let i = 1; i <= 7; i++) {
-    await testRateLimit(manager, 'user2', config, `Request ${i}`);
-}
+  describe('Token Bucket Algorithm', () => {
+    test('should allow requests within limit', async () => {
+      const config = {
+        limit: 5,
+        window: 60,
+        algorithm: RateLimitAlgorithm.TOKEN_BUCKET,
+        costPerRequest: 1
+      };
 
-// Test 4: Different users
-console.log('4️⃣ Different users');
-await testRateLimit(manager, 'user3', config, 'Different user 1');
-await testRateLimit(manager, 'user4', config, 'Different user 2');
+      const result = await manager.isAllowed('user1', config);
+      expect(result.allowed).toBe(true);
+      expect(result.remaining).toBe(4);
+      expect(result.limit).toBe(5);
+    });
 
-// Test 5: Sliding window algorithm
-console.log('5️⃣ Sliding window algorithm');
-const slidingConfig = {
-    limit: 3,
-    window: 10, // 10 seconds
-    algorithm: RateLimitAlgorithm.SLIDING_WINDOW,
-    costPerRequest: 1
-};
+    test('should block requests when limit exceeded', async () => {
+      const config = {
+        limit: 2,
+        window: 60,
+        algorithm: RateLimitAlgorithm.TOKEN_BUCKET,
+        costPerRequest: 1
+      };
 
-await testRateLimit(manager, 'user5', slidingConfig, 'Sliding window - Request 1');
-await testRateLimit(manager, 'user5', slidingConfig, 'Sliding window - Request 2');
-await testRateLimit(manager, 'user5', slidingConfig, 'Sliding window - Request 3');
-await testRateLimit(manager, 'user5', slidingConfig, 'Sliding window - Request 4 (should be limited)');
+      // Make 2 requests (should be allowed)
+      await manager.isAllowed('user2', config);
+      await manager.isAllowed('user2', config);
 
-// Test 6: Fixed window algorithm
-console.log('6️⃣ Fixed window algorithm');
-const fixedConfig = {
-    limit: 2,
-    window: 5, // 5 seconds
-    algorithm: RateLimitAlgorithm.FIXED_WINDOW,
-    costPerRequest: 1
-};
+      // Third request should be blocked
+      const result = await manager.isAllowed('user2', config);
+      expect(result.allowed).toBe(false);
+      expect(result.remaining).toBe(0);
+      expect(result.retryAfter).toBeDefined();
+    });
 
-await testRateLimit(manager, 'user6', fixedConfig, 'Fixed window - Request 1');
-await testRateLimit(manager, 'user6', fixedConfig, 'Fixed window - Request 2');
-await testRateLimit(manager, 'user6', fixedConfig, 'Fixed window - Request 3 (should be limited)');
+    test('should refill tokens over time', async () => {
+      const config = {
+        limit: 2,
+        window: 1, // 1 second window
+        algorithm: RateLimitAlgorithm.TOKEN_BUCKET,
+        costPerRequest: 1
+      };
 
-// Test 7: Rate limit error
-console.log('7️⃣ Rate limit error');
-try {
-    const error = new RateLimitError('Rate limit exceeded', 30);
-    console.log(`✅ RateLimitError created: ${error.message}`);
-    console.log(`Retry after: ${error.retryAfter} seconds`);
-} catch (error) {
-    console.log(`❌ Error creating RateLimitError: ${error.message}`);
-}
-console.log('');
+      // Exhaust tokens
+      await manager.isAllowed('user3', config);
+      await manager.isAllowed('user3', config);
 
-// Test 8: Rate limit middleware
-console.log('8️⃣ Rate limit middleware');
-const middleware = new RateLimitMiddleware(manager);
-console.log('✅ RateLimitMiddleware created successfully');
-console.log('');
+      // Wait for refill (in real scenario)
+      await new Promise(resolve => setTimeout(resolve, 1100));
 
-console.log('🎉 Rate limiting tests completed!');
-}
+      const result = await manager.isAllowed('user3', config);
+      expect(result.allowed).toBe(true);
+    });
+  });
 
-// Run the tests
-runTests().catch(console.error);
+  describe('Sliding Window Algorithm', () => {
+    test('should allow requests within sliding window', async () => {
+      const config = {
+        limit: 3,
+        window: 10,
+        algorithm: RateLimitAlgorithm.SLIDING_WINDOW,
+        costPerRequest: 1
+      };
+
+      const result = await manager.isAllowed('user4', config);
+      expect(result.allowed).toBe(true);
+      expect(result.remaining).toBe(2);
+    });
+
+    test('should block requests when sliding window limit exceeded', async () => {
+      const config = {
+        limit: 2,
+        window: 10,
+        algorithm: RateLimitAlgorithm.SLIDING_WINDOW,
+        costPerRequest: 1
+      };
+
+      // Make 2 requests
+      await manager.isAllowed('user5', config);
+      await manager.isAllowed('user5', config);
+
+      // Third request should be blocked
+      const result = await manager.isAllowed('user5', config);
+      expect(result.allowed).toBe(false);
+      expect(result.retryAfter).toBeDefined();
+    });
+  });
+
+  describe('Fixed Window Algorithm', () => {
+    test('should allow requests within fixed window', async () => {
+      const config = {
+        limit: 3,
+        window: 5,
+        algorithm: RateLimitAlgorithm.FIXED_WINDOW,
+        costPerRequest: 1
+      };
+
+      const result = await manager.isAllowed('user6', config);
+      expect(result.allowed).toBe(true);
+      expect(result.remaining).toBe(2);
+    });
+
+    test('should reset at window boundary', async () => {
+      const config = {
+        limit: 2,
+        window: 1, // 1 second window
+        algorithm: RateLimitAlgorithm.FIXED_WINDOW,
+        costPerRequest: 1
+      };
+
+      // Exhaust window
+      await manager.isAllowed('user7', config);
+      await manager.isAllowed('user7', config);
+
+      // Wait for new window
+      await new Promise(resolve => setTimeout(resolve, 1100));
+
+      const result = await manager.isAllowed('user7', config);
+      expect(result.allowed).toBe(true);
+      expect(result.remaining).toBe(1);
+    });
+  });
+
+  describe('Rate Limit Middleware', () => {
+    test('should create RateLimitMiddleware successfully', () => {
+      const middleware = new RateLimitMiddleware(manager);
+      expect(middleware).toBeDefined();
+      expect(middleware).toBeInstanceOf(RateLimitMiddleware);
+    });
+
+    test('should have middleware method', () => {
+      const middleware = new RateLimitMiddleware(manager);
+      expect(typeof middleware.middleware).toBe('function');
+    });
+  });
+
+  describe('Error Handling', () => {
+    test('should throw error for unsupported algorithm', async () => {
+      const config = {
+        limit: 5,
+        window: 60,
+        algorithm: 'unsupported_algorithm',
+        costPerRequest: 1
+      };
+
+      await expect(manager.isAllowed('user8', config)).rejects.toThrow('Unsupported rate limit algorithm');
+    });
+
+    test('should handle invalid configuration', async () => {
+      const config = {
+        limit: -1, // Invalid limit
+        window: 60,
+        algorithm: RateLimitAlgorithm.TOKEN_BUCKET,
+        costPerRequest: 1
+      };
+
+      // Should handle gracefully or throw appropriate error
+      await expect(manager.isAllowed('user9', config)).rejects.toThrow();
+    });
+  });
+
+  describe('Metrics and Monitoring', () => {
+    test('should track rate limit metrics', async () => {
+      const config = {
+        limit: 5,
+        window: 60,
+        algorithm: RateLimitAlgorithm.TOKEN_BUCKET,
+        costPerRequest: 1
+      };
+
+      await manager.isAllowed('user10', config);
+      const metrics = manager.getMetrics('user10');
+
+      expect(metrics).toHaveProperty('totalRequests');
+      expect(metrics).toHaveProperty('allowedRequests');
+      expect(metrics).toHaveProperty('blockedRequests');
+      expect(metrics).toHaveProperty('allowRate');
+      expect(metrics).toHaveProperty('blockRate');
+    });
+
+    test('should calculate success rates correctly', async () => {
+      const config = {
+        limit: 2,
+        window: 60,
+        algorithm: RateLimitAlgorithm.TOKEN_BUCKET,
+        costPerRequest: 1
+      };
+
+      // Make 3 requests (2 allowed, 1 blocked)
+      await manager.isAllowed('user11', config);
+      await manager.isAllowed('user11', config);
+      await manager.isAllowed('user11', config);
+
+      const metrics = manager.getMetrics('user11');
+      expect(metrics.totalRequests).toBe(3);
+      expect(metrics.allowedRequests).toBe(2);
+      expect(metrics.blockedRequests).toBe(1);
+      expect(metrics.allowRate).toBeCloseTo(0.667, 2);
+      expect(metrics.blockRate).toBeCloseTo(0.333, 2);
+    });
+  });
+
+  describe('Different User Keys', () => {
+    test('should handle different user keys independently', async () => {
+      const config = {
+        limit: 2,
+        window: 60,
+        algorithm: RateLimitAlgorithm.TOKEN_BUCKET,
+        costPerRequest: 1
+      };
+
+      // User A makes 2 requests
+      await manager.isAllowed('userA', config);
+      await manager.isAllowed('userA', config);
+
+      // User B should still be allowed
+      const result = await manager.isAllowed('userB', config);
+      expect(result.allowed).toBe(true);
+      expect(result.remaining).toBe(1);
+    });
+  });
+
+  describe('Cost Per Request', () => {
+    test('should handle different cost per request', async () => {
+      const config = {
+        limit: 10,
+        window: 60,
+        algorithm: RateLimitAlgorithm.TOKEN_BUCKET,
+        costPerRequest: 3
+      };
+
+      // First request should be allowed (cost 3, limit 10)
+      const result1 = await manager.isAllowed('user12', config);
+      expect(result1.allowed).toBe(true);
+      expect(result1.remaining).toBe(7);
+
+      // Second request should be allowed (cost 3, remaining 7)
+      const result2 = await manager.isAllowed('user12', config);
+      expect(result2.allowed).toBe(true);
+      expect(result2.remaining).toBe(4);
+
+      // Third request should be allowed (cost 3, remaining 4)
+      const result3 = await manager.isAllowed('user12', config);
+      expect(result3.allowed).toBe(true);
+      expect(result3.remaining).toBe(1);
+
+      // Fourth request should be blocked (cost 3, remaining 1)
+      const result4 = await manager.isAllowed('user12', config);
+      expect(result4.allowed).toBe(false);
+    });
+  });
+
+  describe('Edge Cases', () => {
+    test('should handle zero limit', async () => {
+      const config = {
+        limit: 0,
+        window: 60,
+        algorithm: RateLimitAlgorithm.TOKEN_BUCKET,
+        costPerRequest: 1
+      };
+
+      const result = await manager.isAllowed('user13', config);
+      expect(result.allowed).toBe(false);
+    });
+
+    test('should handle very large limits', async () => {
+      const config = {
+        limit: 1000000,
+        window: 60,
+        algorithm: RateLimitAlgorithm.TOKEN_BUCKET,
+        costPerRequest: 1
+      };
+
+      const result = await manager.isAllowed('user14', config);
+      expect(result.allowed).toBe(true);
+      expect(result.remaining).toBe(999999);
+    });
+  });
+});

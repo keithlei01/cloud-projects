@@ -61,7 +61,19 @@ class CurrencyConverter {
       return 1.0;
     }
 
-    return this.rates[fromCurrency]?.[toCurrency] || null;
+    // Check direct rate first
+    const directRate = this.rates[fromCurrency]?.[toCurrency];
+    if (directRate !== undefined) {
+      return directRate;
+    }
+
+    // Check reverse rate using the existing reverseRates
+    const reverseRate = this.reverseRates[fromCurrency]?.[toCurrency];
+    if (reverseRate !== undefined) {
+      return reverseRate;
+    }
+
+    return null;
   }
 
   getBestRate(fromCurrency: string, toCurrency: string): number | null {

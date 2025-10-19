@@ -1,48 +1,88 @@
-// Test for Currency Conversion solution
+// Jest tests for Currency Conversion solution
 const { getExchangeRate } = require('./solution');
 
-console.log('🧪 Testing Currency Conversion Solution\n');
+describe('Currency Conversion', () => {
+  describe('Basic Conversion', () => {
+    test('should handle direct conversion', () => {
+      const rates = "AUD:USD:0.7,AUD:JPY:100,USD:CAD:1.2";
+      const result = getExchangeRate(rates, 'AUD', 'USD');
+      expect(result).toBe(0.7);
+    });
 
-// Helper function to compare results
-function testResult(actual, expected, testName) {
-    const passed = actual === expected;
-    console.log(`${testName}: ${actual}`);
-    console.log(`Expected: ${expected}`);
-    console.log(passed ? '✅ PASS' : '❌ FAIL');
-    console.log('');
-    return passed;
-}
+    test('should handle same currency conversion', () => {
+      const rates = "AUD:USD:0.7,AUD:JPY:100,USD:CAD:1.2";
+      const result = getExchangeRate(rates, 'USD', 'USD');
+      expect(result).toBe(1.0);
+    });
+  });
 
-// Test 1: Basic conversion
-console.log('1️⃣ Basic conversion');
-const rates1 = "AUD:USD:0.7,AUD:JPY:100,USD:CAD:1.2";
-const result1 = getExchangeRate(rates1, 'AUD', 'USD');
-testResult(result1, 0.7, 'AUD to USD');
+  describe('Indirect Conversion', () => {
+    test('should handle indirect conversion through one intermediate currency', () => {
+      const rates = "AUD:USD:0.7,AUD:JPY:100,USD:CAD:1.2";
+      const result = getExchangeRate(rates, 'AUD', 'CAD');
+      expect(result).toBe(0.84); // 0.7 * 1.2
+    });
 
-// Test 2: Indirect conversion
-console.log('2️⃣ Indirect conversion');
-const result2 = getExchangeRate(rates1, 'AUD', 'CAD');
-testResult(result2, 0.84, 'AUD to CAD (via USD)');
+    test('should handle complex multi-step conversion', () => {
+      const rates = "USD:EUR:0.85,EUR:GBP:0.9,GBP:JPY:150,USD:CAD:1.25";
+      const result = getExchangeRate(rates, 'USD', 'JPY');
+      expect(result).toBe(114.75); // 0.85 * 0.9 * 150
+    });
+  });
 
-// Test 3: Same currency
-console.log('3️⃣ Same currency');
-const result3 = getExchangeRate(rates1, 'USD', 'USD');
-testResult(result3, 1.0, 'USD to USD');
+  describe('Error Handling', () => {
+    test('should return null for impossible conversion', () => {
+      const rates = "AUD:USD:0.7,AUD:JPY:100,USD:CAD:1.2";
+      const result = getExchangeRate(rates, 'CAD', 'JPY');
+      expect(result).toBeNull();
+    });
 
-// Test 4: Impossible conversion
-console.log('4️⃣ Impossible conversion');
-const result4 = getExchangeRate(rates1, 'CAD', 'JPY');
-testResult(result4, null, 'CAD to JPY (no path)');
+    test('should return null for empty rates string', () => {
+      const result = getExchangeRate("", 'USD', 'EUR');
+      expect(result).toBeNull();
+    });
 
-// Test 5: Complex rates
-console.log('5️⃣ Complex rates');
-const rates2 = "USD:EUR:0.85,EUR:GBP:0.9,GBP:JPY:150,USD:CAD:1.25";
-const result5 = getExchangeRate(rates2, 'USD', 'JPY');
-testResult(result5, 114.75, 'USD to JPY (via EUR and GBP)');
+    test('should return null for invalid currency codes', () => {
+      const rates = "AUD:USD:0.7,AUD:JPY:100,USD:CAD:1.2";
+      const result = getExchangeRate(rates, 'INVALID', 'USD');
+      expect(result).toBeNull();
+    });
+  });
 
-// Test 6: Invalid input
-console.log('6️⃣ Invalid input');
-const result6 = getExchangeRate("", 'USD', 'EUR');
-testResult(result6, null, 'Empty rates string');
+  describe('Edge Cases', () => {
+    test('should handle rates with different formats', () => {
+      const rates = "USD:EUR:0.85,EUR:GBP:0.9,GBP:JPY:150.0";
+      const result = getExchangeRate(rates, 'USD', 'JPY');
+      expect(result).toBe(114.75);
+    });
 
-console.log('🎉 Currency conversion tests completed!');
+    test('should handle single rate conversion', () => {
+      const rates = "USD:EUR:0.85";
+      const result = getExchangeRate(rates, 'USD', 'EUR');
+      expect(result).toBe(0.85);
+    });
+
+    test('should handle reverse conversion', () => {
+      const rates = "USD:EUR:0.85";
+      const result = getExchangeRate(rates, 'EUR', 'USD');
+      expect(result).toBeCloseTo(1.176, 2); // 1/0.85
+    });
+  });
+
+  describe('Performance and Robustness', () => {
+    test('should handle large rate sets efficiently', () => {
+      const rates = Array.from({length: 50}, (_, i) => 
+        `CUR${i}:CUR${i+1}:${1 + i * 0.1}`
+      ).join(',');
+      
+      const result = getExchangeRate(rates, 'CUR0', 'CUR10');
+      expect(result).toBeGreaterThan(0);
+    });
+
+    test('should handle circular rate dependencies', () => {
+      const rates = "USD:EUR:0.85,EUR:GBP:0.9,GBP:USD:1.31";
+      const result = getExchangeRate(rates, 'USD', 'GBP');
+      expect(result).toBeCloseTo(0.765, 2); // 0.85 * 0.9
+    });
+  });
+});
