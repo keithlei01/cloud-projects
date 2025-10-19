@@ -106,7 +106,7 @@ class StringValidator extends Validator {
     if (this.minLength !== undefined && value.length < this.minLength) {
       result.errors.push({
         field: context.fieldPath,
-        message: `String too short (minimum ${this.minLength} characters)`,
+        message: `String does not meet minimum length of ${this.minLength} characters`,
         value,
         code: "min_length"
       } as FieldValidationError);
@@ -156,7 +156,7 @@ class NumberValidator extends Validator {
     if (this.minValue !== undefined && value < this.minValue) {
       result.errors.push({
         field: context.fieldPath,
-        message: `Value too small (minimum ${this.minValue})`,
+        message: `Value does not meet minimum value of ${this.minValue}`,
         value,
         code: "min_value"
       } as FieldValidationError);
@@ -381,6 +381,56 @@ class CreditCardValidator extends Validator {
   }
 }
 
+class ArrayValidator extends Validator {
+  constructor(
+    private minItems?: number,
+    private maxItems?: number
+  ) {
+    super();
+  }
+
+  validate(value: any, context: ValidationContext): ValidationResult {
+    const result: ValidationResult = { isValid: true, errors: [] };
+
+    if (value === null || value === undefined) {
+      return result;
+    }
+
+    if (!Array.isArray(value)) {
+      result.errors.push({
+        field: context.fieldPath,
+        message: "Expected array",
+        value,
+        code: "type_error"
+      } as FieldValidationError);
+      result.isValid = false;
+      return result;
+    }
+
+    if (this.minItems !== undefined && value.length < this.minItems) {
+      result.errors.push({
+        field: context.fieldPath,
+        message: `Array too short (minimum ${this.minItems} items)`,
+        value,
+        code: "min_items"
+      } as FieldValidationError);
+      result.isValid = false;
+    }
+
+    if (this.maxItems !== undefined && value.length > this.maxItems) {
+      result.errors.push({
+        field: context.fieldPath,
+        message: `Array too long (maximum ${this.maxItems} items)`,
+        value,
+        code: "max_items"
+      } as FieldValidationError);
+      result.isValid = false;
+    }
+
+    return result;
+  }
+}
+
 class ObjectValidator extends Validator {
   constructor(private properties: Record<string, any>) {
     super();
@@ -423,7 +473,7 @@ class ObjectValidator extends Validator {
         continue;
       }
 
-      // Validate property value
+      // Validate property value (always validate if present, even if not required)
       if (propValue !== null && propValue !== undefined) {
         const propResult = this.validateProperty(propValue, propSchema, propContext);
         result.errors.push(...propResult.errors);
@@ -451,7 +501,8 @@ class ObjectValidator extends Validator {
 
     // Additional validators
     if (schema.pattern) {
-      const patternValidator = new PatternValidator(schema.pattern);
+      const patternStr = schema.pattern instanceof RegExp ? schema.pattern.source : schema.pattern;
+      const patternValidator = new PatternValidator(patternStr);
       const patternResult = patternValidator.validate(value, context);
       result.errors.push(...patternResult.errors);
       if (!patternResult.isValid) {
@@ -464,6 +515,20 @@ class ObjectValidator extends Validator {
       const enumResult = enumValidator.validate(value, context);
       result.errors.push(...enumResult.errors);
       if (!enumResult.isValid) {
+        result.isValid = false;
+      }
+    }
+
+    // Custom validator
+    if (schema.custom && typeof schema.custom === 'function') {
+      const customError = schema.custom(value);
+      if (customError) {
+        result.errors.push({
+          field: context.fieldPath,
+          message: customError,
+          value,
+          code: 'custom_error'
+        } as FieldValidationError);
         result.isValid = false;
       }
     }
@@ -483,9 +548,13 @@ class ObjectValidator extends Validator {
 
   private getTypeValidator(typeName: string, schema: any): Validator {
     if (typeName === 'string') {
-      return new StringValidator(schema.min_length, schema.max_length);
+      return new StringValidator(schema.minLength || schema.min_length, schema.maxLength || schema.max_length);
     } else if (typeName === 'integer' || typeName === 'number') {
       return new NumberValidator(schema.min, schema.max);
+    } else if (typeName === 'boolean') {
+      return new TypeValidator('boolean');
+    } else if (typeName === 'array') {
+      return new ArrayValidator(schema.minItems, schema.maxItems);
     } else if (typeName === 'email') {
       return new EmailValidator();
     } else if (typeName === 'phone') {
@@ -502,6 +571,20 @@ class ObjectValidator extends Validator {
 
 export class DataValidator {
   validate(data: any, schema: any): ValidationResult {
+    // Check if this is an object schema (has field definitions)
+    const isObjectSchema = schema.properties || 
+      (typeof schema === 'object' && 
+       !schema.type && 
+       Object.keys(schema).length > 0 &&
+       Object.values(schema).some(field => field && typeof field === 'object' && 'type' in field));
+    
+    if (isObjectSchema) {
+      const objectValidator = new ObjectValidator(schema.properties || schema);
+      const context: ValidationContext = { fieldPath: '' };
+      return objectValidator.validate(data, context);
+    }
+    
+    // Otherwise, treat as single field validation
     const context: ValidationContext = { fieldPath: '' };
     return this.validateValue(data, schema, context);
   }
@@ -536,7 +619,8 @@ export class DataValidator {
 
     // Additional validators
     if (schema.pattern) {
-      const patternValidator = new PatternValidator(schema.pattern);
+      const patternStr = schema.pattern instanceof RegExp ? schema.pattern.source : schema.pattern;
+      const patternValidator = new PatternValidator(patternStr);
       const patternResult = patternValidator.validate(value, context);
       result.errors.push(...patternResult.errors);
       if (!patternResult.isValid) {
@@ -549,6 +633,20 @@ export class DataValidator {
       const enumResult = enumValidator.validate(value, context);
       result.errors.push(...enumResult.errors);
       if (!enumResult.isValid) {
+        result.isValid = false;
+      }
+    }
+
+    // Custom validator
+    if (schema.custom && typeof schema.custom === 'function') {
+      const customError = schema.custom(value);
+      if (customError) {
+        result.errors.push({
+          field: context.fieldPath,
+          message: customError,
+          value,
+          code: 'custom_error'
+        } as FieldValidationError);
         result.isValid = false;
       }
     }
@@ -568,9 +666,13 @@ export class DataValidator {
 
   private getTypeValidator(typeName: string, schema: any): Validator {
     if (typeName === 'string') {
-      return new StringValidator(schema.min_length, schema.max_length);
+      return new StringValidator(schema.minLength || schema.min_length, schema.maxLength || schema.max_length);
     } else if (typeName === 'integer' || typeName === 'number') {
       return new NumberValidator(schema.min, schema.max);
+    } else if (typeName === 'boolean') {
+      return new TypeValidator('boolean');
+    } else if (typeName === 'array') {
+      return new ArrayValidator(schema.minItems, schema.maxItems);
     } else if (typeName === 'email') {
       return new EmailValidator();
     } else if (typeName === 'phone') {

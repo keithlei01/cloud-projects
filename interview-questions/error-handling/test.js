@@ -5,7 +5,22 @@ describe('Error Handling & Retry Logic', () => {
   let retryManager;
 
   beforeEach(() => {
-    retryManager = new RetryManager();
+    const defaultConfig = {
+      maxAttempts: 3,
+      baseDelay: 1.0,
+      maxDelay: 30.0,
+      backoffStrategy: 'exponential',
+      jitter: true,
+      jitterRange: 0.1
+    };
+    
+    const circuitBreakerConfig = {
+      failureThreshold: 5,
+      recoveryTimeout: 60000,
+      monitoringWindow: 120000
+    };
+    
+    retryManager = new RetryManager(defaultConfig, circuitBreakerConfig);
   });
 
   describe('Retry Manager Creation', () => {

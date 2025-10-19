@@ -246,7 +246,22 @@ export class RateLimitManager {
     return this.storage;
   }
 
+  private validateConfig(config: RateLimitConfig): void {
+    if (config.limit <= 0) {
+      throw new Error(`Invalid rate limit: ${config.limit}. Limit must be greater than 0.`);
+    }
+    if (config.window <= 0) {
+      throw new Error(`Invalid window: ${config.window}. Window must be greater than 0.`);
+    }
+    if (config.costPerRequest <= 0) {
+      throw new Error(`Invalid cost per request: ${config.costPerRequest}. Cost must be greater than 0.`);
+    }
+  }
+
   async isAllowed(key: string, config: RateLimitConfig): Promise<RateLimitResult> {
+    // Validate configuration
+    this.validateConfig(config);
+    
     const limiter = this.limiters.get(config.algorithm);
     if (!limiter) {
       throw new Error(`Unsupported rate limit algorithm: ${config.algorithm}`);

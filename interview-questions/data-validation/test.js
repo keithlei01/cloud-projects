@@ -198,8 +198,8 @@ describe('Data Validation', () => {
 
       expect(result.isValid).toBe(false);
       expect(result.errors).toHaveLength(2);
-      expect(result.errors[0]).toContain('minimum length');
-      expect(result.errors[1]).toContain('minimum value');
+      expect(result.errors[0].message).toContain('minimum length');
+      expect(result.errors[1].message).toContain('minimum value');
     });
 
     test('should handle validation errors gracefully', () => {

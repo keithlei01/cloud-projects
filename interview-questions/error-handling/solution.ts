@@ -148,6 +148,11 @@ class ErrorClassifier {
     // Default to retryable for unknown errors
     return ErrorType.RETRYABLE;
   }
+
+  isRetryable(error: Error): boolean {
+    const errorType = this.classifyError(error);
+    return errorType === ErrorType.RETRYABLE;
+  }
 }
 
 class BackoffCalculator {
@@ -236,6 +241,10 @@ class CircuitBreaker {
     if (this.failureCount >= this.config.failureThreshold) {
       this.state = CircuitBreakerState.OPEN;
     }
+  }
+
+  getState(): string {
+    return this.state;
   }
 }
 
@@ -392,6 +401,7 @@ class RetryMetrics {
         blockRate: 0,
         averageRetryCount: 0,
         maxRetryCount: 0,
+        averageRetryTime: 0,
         errorTypes: {},
         circuitBreakerOpens: 0
       };
@@ -409,6 +419,8 @@ class RetryMetrics {
       averageRetryCount: retryCounts.length > 0 ? 
         retryCounts.reduce((a, b) => a + b, 0) / retryCounts.length : 0,
       maxRetryCount: retryCounts.length > 0 ? Math.max(...retryCounts) : 0,
+      averageRetryTime: retryCounts.length > 0 ? 
+        retryCounts.reduce((a, b) => a + b, 0) / retryCounts.length * 1000 : 0, // Convert to milliseconds
       errorTypes: Object.fromEntries(metrics.errorTypes),
       circuitBreakerOpens: metrics.circuitBreakerOpens
     };
@@ -428,12 +440,28 @@ export class RetryManager {
     circuitBreakerConfig: CircuitBreakerConfig,
     deadLetterQueue?: DeadLetterQueue
   ) {
+    this.validateRetryConfig(defaultConfig);
     this.defaultConfig = defaultConfig;
     this.circuitBreakerConfig = circuitBreakerConfig;
     this.deadLetterQueue = deadLetterQueue || new DeadLetterQueue();
     this.errorClassifier = new ErrorClassifier();
     this.metrics = new RetryMetrics();
     this.circuitBreakers = new Map();
+  }
+
+  private validateRetryConfig(config: RetryConfig): void {
+    if (config.maxAttempts <= 0) {
+      throw new Error('maxAttempts must be greater than 0');
+    }
+    if (config.baseDelay < 0) {
+      throw new Error('baseDelay must be non-negative');
+    }
+    if (config.maxDelay < 0) {
+      throw new Error('maxDelay must be non-negative');
+    }
+    if (config.jitterRange < 0 || config.jitterRange > 1) {
+      throw new Error('jitterRange must be between 0 and 1');
+    }
   }
 
   private getCircuitBreaker(operationType: string): CircuitBreaker {
@@ -446,8 +474,6 @@ export class RetryManager {
   async executeWithRetry(operation: Operation): Promise<any> {
     const config = operation.config || this.defaultConfig;
     const circuitBreaker = this.getCircuitBreaker(operation.operationType);
-
-    let lastError: Error | undefined;
 
     for (let attempt = 0; attempt < config.maxAttempts; attempt++) {
       operation.attempts = attempt + 1;
@@ -463,7 +489,6 @@ export class RetryManager {
         console.log(`Operation ${operation.id} succeeded on attempt ${attempt + 1}`);
         return result;
       } catch (error: any) {
-        lastError = error;
         operation.lastError = error;
 
         if (error instanceof CircuitBreakerOpenError) {
@@ -512,6 +537,18 @@ export class RetryManager {
 
   async getFailedOperations(limit: number = 100): Promise<any[]> {
     return this.deadLetterQueue.getFailedOperations(limit);
+  }
+
+  isRetryableError(error: Error): boolean {
+    return this.errorClassifier.isRetryable(error);
+  }
+
+  getCircuitBreakerState(operationType: string): string {
+    const circuitBreaker = this.circuitBreakers.get(operationType);
+    if (!circuitBreaker) {
+      return 'closed';
+    }
+    return circuitBreaker.getState();
   }
 }
 

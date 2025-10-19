@@ -10,9 +10,17 @@
  * 6. Database storage and API endpoints
  */
 
-import * as express from 'express';
+import express from 'express';
 import { Database } from 'sqlite3';
-import { v4 as uuidv4 } from 'uuid';
+
+// Simple uuid implementation to avoid type issues
+function uuidv4(): string {
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+    const r = Math.random() * 16 | 0;
+    const v = c === 'x' ? r : (r & 0x3 | 0x8);
+    return v.toString(16);
+  });
+}
 
 enum PaymentStatus {
   PENDING = "pending",
@@ -224,6 +232,9 @@ class BankTransferHandler extends PaymentMethodHandler {
   async processPayment(payment: Payment): Promise<Record<string, any>> {
     // Bank transfers are typically asynchronous
     await new Promise(resolve => setTimeout(resolve, 200));
+
+    // Log payment processing for audit
+    console.log(`Processing bank transfer for payment ${payment.id}`);
 
     return {
       success: true,
@@ -552,12 +563,12 @@ export class PaymentService {
       const handler = this.handlers.get(payment.payment_method)!;
       const result = await handler.processPayment(payment);
 
-      if (result.success) {
+      if (result['success']) {
         payment.status = PaymentStatus.SUCCEEDED;
         console.log(`Payment ${paymentId} processed successfully`);
       } else {
         payment.status = PaymentStatus.FAILED;
-        console.warn(`Payment ${paymentId} failed: ${result.error}`);
+        console.warn(`Payment ${paymentId} failed: ${result['error']}`);
       }
     } catch (error) {
       payment.status = PaymentStatus.FAILED;
@@ -586,7 +597,7 @@ export class PaymentService {
     const handler = this.handlers.get(payment.payment_method)!;
     const result = await handler.refundPayment(payment, refundAmount);
 
-    if (result.success) {
+    if (result['success']) {
       payment.status = PaymentStatus.REFUNDED;
       payment.updated_at = Math.floor(Date.now() / 1000);
       await this.db.savePayment(payment);
@@ -606,7 +617,7 @@ export function createPaymentApp(): express.Application {
   const db = new PaymentDatabase();
   const paymentService = new PaymentService(db);
 
-  app.post('/api/v1/payments', async (req, res) => {
+  app.post('/api/v1/payments', async (req: any, res: any) => {
     try {
       const payment = await paymentService.createPayment(req.body);
       res.status(201).json(payment);
@@ -621,7 +632,7 @@ export function createPaymentApp(): express.Application {
     }
   });
 
-  app.get('/api/v1/payments/:paymentId', async (req, res) => {
+  app.get('/api/v1/payments/:paymentId', async (req: any, res: any) => {
     try {
       const payment = await db.getPayment(req.params.paymentId);
       if (!payment) {
@@ -633,7 +644,7 @@ export function createPaymentApp(): express.Application {
     }
   });
 
-  app.post('/api/v1/payments/:paymentId/process', async (req, res) => {
+  app.post('/api/v1/payments/:paymentId/process', async (req: any, res: any) => {
     try {
       const payment = await paymentService.processPayment(req.params.paymentId);
       res.json(payment);
@@ -647,7 +658,7 @@ export function createPaymentApp(): express.Application {
     }
   });
 
-  app.post('/api/v1/payments/:paymentId/refund', async (req, res) => {
+  app.post('/api/v1/payments/:paymentId/refund', async (req: any, res: any) => {
     try {
       const refundData = req.body || {};
       const amount = refundData.amount;
