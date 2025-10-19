@@ -72,8 +72,6 @@ export interface APIConfig {
   rateLimitWindow: number; // seconds
 }
 
-// RateLimiter interface removed as it's not used in the implementation
-
 class SimpleRateLimiter {
   private requestsPerWindow: number;
   private windowSeconds: number;

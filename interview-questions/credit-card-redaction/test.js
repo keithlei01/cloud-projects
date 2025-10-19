@@ -1,110 +1,201 @@
-// Test for Credit Card Redaction solution
+// Jest tests for Credit Card Redaction solution
 const { CreditCardRedactor } = require('./solution');
 
-console.log('🧪 Testing Credit Card Redaction Solution\n');
+describe('Credit Card Redaction', () => {
+  let redactor;
+  let redactorCustom;
 
-// Helper function to compare results
-function testResult(actual, expected, testName) {
-    const passed = actual === expected;
-    console.log(`${testName}:`);
-    console.log(`Actual: "${actual}"`);
-    console.log(`Expected: "${expected}"`);
-    console.log(passed ? '✅ PASS' : '❌ FAIL');
-    console.log('');
-    return passed;
-}
+  beforeEach(() => {
+    redactor = new CreditCardRedactor();
+    redactorCustom = new CreditCardRedactor("XXX");
+  });
 
-// Test 1: Basic redaction
-console.log('1️⃣ Basic redaction');
-const redactor1 = new CreditCardRedactor();
-const text1 = "Payment with card 4532 0151 1283 0366 successful";
-const result1 = redactor1.redactText(text1);
-const expected1 = "Payment with card [REDACTED] successful";
-testResult(result1, expected1, 'Basic redaction');
+  describe('Basic Redaction', () => {
+    test('should redact single credit card number', () => {
+      const text = "Payment with card 4532 0151 1283 0366 successful";
+      const result = redactor.redactText(text);
+      const expected = "Payment with card [REDACTED] successful";
+      expect(result).toBe(expected);
+    });
 
-// Test 2: Multiple cards
-console.log('2️⃣ Multiple cards');
-const text2 = "Cards: 4532 0151 1283 0366 and 5555 5555 5555 4444";
-const result2 = redactor1.redactText(text2);
-const expected2 = "Cards: [REDACTED] and [REDACTED]";
-testResult(result2, expected2, 'Multiple cards');
+    test('should redact multiple credit card numbers', () => {
+      const text = "Cards: 4532 0151 1283 0366 and 5555 5555 5555 4444";
+      const result = redactor.redactText(text);
+      const expected = "Cards: [REDACTED] and [REDACTED]";
+      expect(result).toBe(expected);
+    });
 
-// Test 3: Different formats
-console.log('3️⃣ Different formats');
-const text3 = "Card 4532-0151-1283-0366 or 4532015112830366";
-const result3 = redactor1.redactText(text3);
-const expected3 = "Card [REDACTED] or [REDACTED]";
-testResult(result3, expected3, 'Different formats');
+    test('should handle different card formats', () => {
+      const text = "Card 4532-0151-1283-0366 or 4532015112830366";
+      const result = redactor.redactText(text);
+      const expected = "Card [REDACTED] or [REDACTED]";
+      expect(result).toBe(expected);
+    });
 
-// Test 4: No cards
-console.log('4️⃣ No cards');
-const text4 = "No card numbers in this text";
-const result4 = redactor1.redactText(text4);
-testResult(result4, text4, 'No cards (unchanged)');
+    test('should leave text unchanged when no cards present', () => {
+      const text = "No card numbers in this text";
+      const result = redactor.redactText(text);
+      expect(result).toBe(text);
+    });
+  });
 
-// Test 5: Custom placeholder
-console.log('5️⃣ Custom placeholder');
-const redactor5 = new CreditCardRedactor("***");
-const text5 = "Card 4532 0151 1283 0366";
-const result5 = redactor5.redactText(text5);
-const expected5 = "Card ***";
-testResult(result5, expected5, 'Custom placeholder');
+  describe('Custom Placeholder', () => {
+    test('should use custom placeholder', () => {
+      const customRedactor = new CreditCardRedactor("***");
+      const text = "Card 4532 0151 1283 0366";
+      const result = customRedactor.redactText(text);
+      const expected = "Card ***";
+      expect(result).toBe(expected);
+    });
 
-// Test 6: CreditCardRedactor class
-console.log('6️⃣ CreditCardRedactor class');
-const redactor = new CreditCardRedactor("XXX");
-const text6 = "Processing 4532 0151 1283 0366...";
-const result6 = redactor.redactText(text6);
-const expected6 = "Processing XXX...";
-testResult(result6, expected6, 'Class method');
+    test('should use custom placeholder for class method', () => {
+      const text = "Processing 4532 0151 1283 0366...";
+      const result = redactorCustom.redactText(text);
+      const expected = "Processing XXX...";
+      expect(result).toBe(expected);
+    });
+  });
 
-// Test 7: Partial redaction
-console.log('7️⃣ Partial redaction');
-const result7 = redactor.redactWithPartialDisplay(text6, 4);
-const expected7 = "Processing **** **** **** 0366..."; // Should show last 4 digits
-testResult(result7, expected7, 'Partial redaction');
+  describe('Partial Redaction', () => {
+    test('should show last 4 digits in partial redaction', () => {
+      const text = "Processing 4532 0151 1283 0366...";
+      const result = redactorCustom.redactWithPartialDisplay(text, 4);
+      const expected = "Processing **** **** **** 0366...";
+      expect(result).toBe(expected);
+    });
 
-// Test 8: Test cases from solution.ts
-console.log('8️⃣ Test cases from solution.ts');
+    test('should handle different showLast values', () => {
+      const text = "Card 4532 0151 1283 0366";
+      const result = redactor.redactWithPartialDisplay(text, 2);
+      const expected = "Card **** **** **** 66";
+      expect(result).toBe(expected);
+    });
+  });
 
-const testCases = [
-    "Payment with card 4532 0151 1283 0366 successful",
-    "Card number 4532-1234-5678-9012 is valid",
-    "Processing 4532123456789012...",
-    "Multiple cards: 4532 0151 1283 0366 and 5555 5555 5555 4444",
-    "No card numbers in this text",
-    "Invalid: 1234 5678 9012 (too short)",
-    "Edge case: 4532-1234 5678 9012 (mixed separators)",
-    "Customer payment: 4532 0151 1283 0366, amount: $100.00"
-];
+  describe('Card Type Detection', () => {
+    test('should detect Visa cards', () => {
+      const card = "4532 0151 1283 0366";
+      const result = redactor.getCardType(card);
+      expect(result).toBe('Visa');
+    });
 
-console.log("=== Full Redaction ===");
-for (const testCase of testCases) {
-    const redacted = redactor.redactText(testCase);
-    console.log(`Original: ${testCase}`);
-    console.log(`Redacted: ${redacted}`);
-    console.log();
-}
+    test('should detect MasterCard', () => {
+      const card = "5555 5555 5555 4444";
+      const result = redactor.getCardType(card);
+      expect(result).toBe('MasterCard');
+    });
 
-console.log("=== Partial Redaction (showing last 4 digits) ===");
-for (const testCase of testCases) {
-    const partial = redactor.redactWithPartialDisplay(testCase, 4);
-    console.log(`Original: ${testCase}`);
-    console.log(`Partial:  ${partial}`);
-    console.log();
-}
+    test('should detect American Express', () => {
+      const card = "3782 822463 10005";
+      const result = redactor.getCardType(card);
+      expect(result).toBe('American Express');
+    });
 
-console.log("=== Card Type Detection ===");
-const testCards = [
-    "4532 0151 1283 0366",  // Visa
-    "5555 5555 5555 4444",  // MasterCard
-    "3782 822463 10005",    // American Express
-    "6011 1111 1111 1117"   // Discover
-];
+    test('should detect Discover', () => {
+      const card = "6011 1111 1111 1117";
+      const result = redactor.getCardType(card);
+      expect(result).toBe('Discover');
+    });
 
-for (const card of testCards) {
-    const cardType = redactor.getCardType(card);
-    console.log(`Card: ${card} -> Type: ${cardType}`);
-}
+    test('should return Unknown for unrecognized cards', () => {
+      const card = "1234 5678 9012 3456";
+      const result = redactor.getCardType(card);
+      expect(result).toBe('Unknown');
+    });
+  });
 
-console.log('🎉 Credit card redaction tests completed!');
+  describe('Luhn Algorithm Validation', () => {
+    test('should validate correct Luhn checksum', () => {
+      const validCard = "4532015112830366";
+      const result = redactor.luhnChecksum(validCard);
+      expect(result).toBe(true);
+    });
+
+    test('should reject invalid Luhn checksum', () => {
+      const invalidCard = "1234567890123456";
+      const result = redactor.luhnChecksum(invalidCard);
+      expect(result).toBe(false);
+    });
+
+    test('should reject non-numeric input', () => {
+      const nonNumeric = "abcd1234efgh5678";
+      const result = redactor.luhnChecksum(nonNumeric);
+      expect(result).toBe(false);
+    });
+
+    test('should reject cards with wrong length', () => {
+      const shortCard = "123456789012";
+      const longCard = "12345678901234567890";
+      expect(redactor.luhnChecksum(shortCard)).toBe(false);
+      expect(redactor.luhnChecksum(longCard)).toBe(false);
+    });
+  });
+
+  describe('Edge Cases', () => {
+    test('should handle mixed separators', () => {
+      const text = "Edge case: 4532-1234 5678 9012 (mixed separators)";
+      const result = redactor.redactText(text);
+      // Should not redact invalid cards (wrong Luhn checksum)
+      expect(result).toBe(text);
+    });
+
+    test('should handle invalid card numbers', () => {
+      const text = "Invalid: 1234 5678 9012 (too short)";
+      const result = redactor.redactText(text);
+      expect(result).toBe(text);
+    });
+
+    test('should handle empty string', () => {
+      const result = redactor.redactText("");
+      expect(result).toBe("");
+    });
+
+    test('should handle text with only spaces', () => {
+      const text = "   ";
+      const result = redactor.redactText(text);
+      expect(result).toBe(text);
+    });
+  });
+
+  describe('Complex Scenarios', () => {
+    const testCases = [
+      {
+        name: 'Payment with valid card',
+        input: "Payment with card 4532 0151 1283 0366 successful",
+        expected: "Payment with card [REDACTED] successful"
+      },
+      {
+        name: 'Multiple valid cards',
+        input: "Multiple cards: 4532 0151 1283 0366 and 5555 5555 5555 4444",
+        expected: "Multiple cards: [REDACTED] and [REDACTED]"
+      },
+      {
+        name: 'Customer payment with amount',
+        input: "Customer payment: 4532 0151 1283 0366, amount: $100.00",
+        expected: "Customer payment: [REDACTED], amount: $100.00"
+      }
+    ];
+
+    testCases.forEach(({ name, input, expected }) => {
+      test(`should handle ${name}`, () => {
+        const result = redactor.redactText(input);
+        expect(result).toBe(expected);
+      });
+    });
+  });
+
+  describe('Performance and Robustness', () => {
+    test('should handle large text with multiple cards', () => {
+      const largeText = Array(100).fill("Payment with card 4532 0151 1283 0366").join(" ");
+      const result = redactor.redactText(largeText);
+      expect(result).toContain("[REDACTED]");
+      expect(result).not.toContain("4532 0151 1283 0366");
+    });
+
+    test('should maintain text structure', () => {
+      const text = "Processing payment 4532 0151 1283 0366 for customer John Doe.";
+      const result = redactor.redactText(text);
+      expect(result).toBe("Processing payment [REDACTED] for customer John Doe.");
+    });
+  });
+});

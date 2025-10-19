@@ -9,6 +9,7 @@
     "dev": "ts-node src/index.ts",
     "test": "jest",
     "test:watch": "jest --watch",
+    "test:credit-card-redaction": "jest credit-card-redaction/test.js",
     "lint": "eslint src/**/*.ts",
     "lint:fix": "eslint src/**/*.ts --fix",
     "format": "prettier --write src/**/*.ts",
