@@ -103,7 +103,8 @@ export class CreditCardRedactor {
      */
     const cardNumbers = this.extractCardNumbers(text);
 
-    // Sort by position in reverse order to avoid index shifting
+    // IMPORTANT: Redaction must be done in reverse order to avoid index shifting
+    // Sort by position in reverse order
     cardNumbers.sort((a, b) => b.start - a.start);
 
     let redactedText = text;

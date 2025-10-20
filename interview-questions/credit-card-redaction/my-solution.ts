@@ -14,35 +14,110 @@ export class CreditCardRedactor {
     }
 
     luhnChecksum(cardNumber: string): boolean {
+        if (Number.isNaN(Number(cardNumber))) {
+            return false;
+        }
 
-        return true;
+        const digits = cardNumber.split('').map((digit) => parseInt(digit, 10));
+        // console.log("digits=" + digits);
+
+        if (digits.length < 13 || digits.length > 19) {
+            return false;
+        }
+
+        let evenSum = 0;
+        let oddSum = 0;
+        let y = 1;
+        for (let i = digits.length - 1; i >= 0; i--) {
+            // 79927398713
+            // 3x2
+            // 8x2=16=7
+            const digit = digits[i];
+            if (digit === undefined) {
+                return false;
+            }
+
+            if (y % 2 == 0) {
+                let tempSum = digit * 2;
+                if (tempSum >= 10) {
+                    tempSum = (tempSum % 10) + 1;
+                }
+                evenSum += tempSum;
+                // console.log(y + ": digit=" + digit + ", tempSum=" + tempSum + ", evenSum=" + evenSum);
+            } else {
+                oddSum += digit;
+                // console.log(y + ": digit=" + digit + ", oddSum=" + oddSum);
+            }
+            y++;
+        }
+
+        const result = ((evenSum + oddSum) % 10) === 0;
+        // console.log("luhnChecksum=" + result);
+        return result;
     }
 
     extractCardNumbers(text: string): CardMatch[] {
+        /**
+         * Extract potential credit card numbers from text.
+         * 
+         * @param text - Input text to search
+         * @returns List of card matches with positions
+         */
+        const matches: CardMatch[] = [];
+        let match;
 
-        return [];
-    }
+        // Reset regex lastIndex to ensure we start from the beginning
+        this.cardPattern.lastIndex = 0;
 
-    redactText(text: string): string {
+        while ((match = this.cardPattern.exec(text)) !== null) {
+            // Clean the matched string to get digits only
+            const cardCandidate = match[0].replace(/\D/g, '');
 
-        return text;
-    }
-
-    redactWithPartialDisplay(text: string, showLast: number = 4): string {
-
-        return text;
-    }
-
-    private detectSeparator(cardNumber: string): string {
-        if (cardNumber.includes(' ')) {
-            return ' ';
-        } else if (cardNumber.includes('-')) {
-            return '-';
-        } else if (cardNumber.includes('.')) {
-            return '.';
+            // Validate using Luhn algorithm
+            if (this.luhnChecksum(cardCandidate)) {
+                matches.push({
+                    cardNumber: match[0],
+                    start: match.index,
+                    end: match.index + match[0].length
+                });
+            }
         }
-        return '';
+
+        return matches;
     }
+
+    /**
+     * 1. extract cards from text
+     * 2. loop through cards in reverse order () and redact
+     */
+    redactText(text: string): string {
+        const cardMatches = this.extractCardNumbers(text);
+        // console.log("-------------> cardMatches=" + cardMatches.length);
+        cardMatches.sort((a, b) => b.start - a.start);
+
+        let redactedText = text;
+        for (const { start, end } of cardMatches) {
+            redactedText = redactedText.slice(0, start) + this.placeholder + redactedText.slice(end);
+        }
+
+        return redactedText;
+    }
+
+    redactWithPartialDisplay(text: string, _showLast: number = 4): string {
+        // TODO: Implement partial display redaction
+        return text;
+    }
+
+    // private detectSeparator(cardNumber: string): string {
+    //     if (cardNumber.includes(' ')) {
+    //         return ' ';
+    //     } else if (cardNumber.includes('-')) {
+    //         return '-';
+    //     } else if (cardNumber.includes('.')) {
+    //         return '.';
+    //     }
+    //     return '';
+    // }
 
     getCardType(cardNumber: string): string {
         const digits = cardNumber.replace(/\D/g, '');
