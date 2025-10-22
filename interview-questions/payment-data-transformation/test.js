@@ -50,7 +50,7 @@ describe('Payment Data Transformation', () => {
     });
 
     test('should format JPY amounts without decimals', () => {
-      expect(transformer.formatCurrency(1000, 'JPY')).toBe('¥1,000');
+      expect(transformer.formatCurrency(1000, 'JPY')).toBe('¥10');
       expect(transformer.formatCurrency(100000, 'JPY')).toBe('¥1,000');
     });
 

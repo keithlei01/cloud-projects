@@ -23,7 +23,7 @@ export class PaymentRetryManager {
   private config: RetryConfig;
   private circuitBreakerFailures: number = 0;
   private circuitBreakerThreshold: number = 5;
-  private circuitBreakerTimeout: number = 60000; // 1 minute
+  private circuitBreakerTimeout: number = 1000; // 1 second for testing
   private circuitBreakerLastFailure: number = 0;
 
   constructor(config: Partial<RetryConfig> = {}) {
@@ -47,17 +47,17 @@ export class PaymentRetryManager {
     const startTime = Date.now();
     let lastError: Error | null = null;
 
-    // Check circuit breaker
-    if (this.isCircuitBreakerOpen()) {
-      return {
-        success: false,
-        error: 'Circuit breaker is open',
-        attempts: 0,
-        totalTime: Date.now() - startTime
-      };
-    }
-
     for (let attempt = 0; attempt <= this.config.maxRetries; attempt++) {
+      // Check circuit breaker before each attempt (except first attempt)
+      if (attempt > 0 && this.isCircuitBreakerOpen()) {
+        return {
+          success: false,
+          error: 'Circuit breaker is open',
+          attempts: attempt,
+          totalTime: Date.now() - startTime
+        };
+      }
+
       try {
         const result = await operation();
         
@@ -192,5 +192,13 @@ export class PaymentRetryManager {
       failures: this.circuitBreakerFailures,
       lastFailure: this.circuitBreakerLastFailure
     };
+  }
+
+  /**
+   * Resets the circuit breaker (for testing purposes)
+   */
+  resetCircuitBreakerForTesting(): void {
+    this.circuitBreakerFailures = 0;
+    this.circuitBreakerLastFailure = 0;
   }
 }

@@ -44,13 +44,18 @@ export class WebhookValidator {
         .update(signedPayload, 'utf8')
         .digest('hex');
 
+      // Validate signature format (must be valid hex)
+      if (!/^[0-9a-f]+$/i.test(signatureData.signature)) {
+        return { isValid: false, error: 'Invalid signature' };
+      }
+
       // Compare signatures using constant-time comparison
       const isValid = crypto.timingSafeEqual(
         Buffer.from(signatureData.signature, 'hex'),
         Buffer.from(expectedSignature, 'hex')
       );
 
-      return { isValid, error: isValid ? undefined : 'Invalid signature' };
+      return { isValid, ...(isValid ? {} : { error: 'Invalid signature' }) };
     } catch (error) {
       return { isValid: false, error: 'Validation error' };
     }
@@ -66,9 +71,9 @@ export class WebhookValidator {
 
     for (const part of parts) {
       const [key, value] = part.split('=');
-      if (key === 't') {
+      if (key === 't' && value) {
         timestamp = parseInt(value, 10);
-      } else if (key === 'v1') {
+      } else if (key === 'v1' && value) {
         signatureValue = value;
       }
     }

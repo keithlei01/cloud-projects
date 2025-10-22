@@ -46,7 +46,7 @@ export class PaymentDataTransformer {
   /**
    * Converts various currency formats to cents
    */
-  convertToCents(amount: string | number, currency: string): number {
+  convertToCents(amount: string | number, _currency: string): number {
     if (typeof amount === 'number') {
       return Math.round(amount * 100);
     }
@@ -57,11 +57,26 @@ export class PaymentDataTransformer {
     // Handle different decimal separators
     let normalizedAmount: string;
     if (cleanAmount.includes(',') && cleanAmount.includes('.')) {
-      // European format: 1.234,56
-      normalizedAmount = cleanAmount.replace(/\./g, '').replace(',', '.');
+      // European format: 1.234,56 or US format: 1,234.56
+      const lastComma = cleanAmount.lastIndexOf(',');
+      const lastDot = cleanAmount.lastIndexOf('.');
+      if (lastComma > lastDot) {
+        // European format: 1.234,56
+        normalizedAmount = cleanAmount.replace(/\./g, '').replace(',', '.');
+      } else {
+        // US format: 1,234.56
+        normalizedAmount = cleanAmount.replace(/,/g, '');
+      }
     } else if (cleanAmount.includes(',')) {
-      // Could be either format, assume decimal separator
-      normalizedAmount = cleanAmount.replace(',', '.');
+      // Could be either format, check if it looks like thousands separator
+      const parts = cleanAmount.split(',');
+      if (parts.length === 2 && parts[1] && parts[1].length <= 2) {
+        // Likely decimal separator: 123,45
+        normalizedAmount = cleanAmount.replace(',', '.');
+      } else {
+        // Likely thousands separator: 1,234
+        normalizedAmount = cleanAmount.replace(/,/g, '');
+      }
     } else {
       normalizedAmount = cleanAmount;
     }
@@ -83,11 +98,11 @@ export class PaymentDataTransformer {
     }
 
     const amount = amountInCents / 100;
-    const symbol = this.currencySymbols[currency];
+    const symbol = this.currencySymbols[currency as keyof typeof this.currencySymbols];
     
     // Handle different currency formatting rules
     if (currency === 'JPY') {
-      // Japanese Yen doesn't use decimal places
+      // Japanese Yen doesn't use decimal places (1 cent = 1 yen)
       return `${symbol}${Math.round(amount).toLocaleString()}`;
     } else {
       return `${symbol}${amount.toFixed(2)}`;
@@ -204,7 +219,7 @@ export class PaymentDataTransformer {
     try {
       this.normalizePaymentMethod(data.payment_method);
     } catch (error) {
-      errors.push(`Invalid payment method: ${error.message}`);
+      errors.push(`Invalid payment method: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
 
     // Validate card data if present
@@ -238,16 +253,18 @@ export class PaymentDataTransformer {
 
     // Process digits from right to left
     for (let i = digits.length - 1; i >= 0; i--) {
-      let digit = digits[i];
+      const digit = digits[i];
+      if (digit === undefined) continue;
 
+      let processedDigit = digit;
       if (isEven) {
-        digit *= 2;
-        if (digit > 9) {
-          digit -= 9;
+        processedDigit *= 2;
+        if (processedDigit > 9) {
+          processedDigit -= 9;
         }
       }
 
-      sum += digit;
+      sum += processedDigit;
       isEven = !isEven;
     }
 
