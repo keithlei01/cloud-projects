@@ -12,11 +12,9 @@
     "test:credit-card-redaction": "jest credit-card-redaction/test.js",
     "test:currency-conversion": "jest currency-conversion/test.js",
     "test:api-integration": "jest api-integration/test.js",
-    "test:data-validation": "jest data-validation/test.js",
-    "test:error-handling": "jest error-handling/test.js",
-    "test:payment-processing": "jest payment-processing/test.js",
-    "test:rate-limiting": "jest rate-limiting/test.js",
-    "test:webhook-handler": "jest webhook-handler/test.js",
+    "test:webhook-signature-validation": "jest webhook-signature-validation/test.js",
+    "test:payment-retry-logic": "jest payment-retry-logic/test.js",
+    "test:payment-data-transformation": "jest payment-data-transformation/test.js",
     "lint": "eslint src/**/*.ts",
     "lint:fix": "eslint src/**/*.ts --fix",
     "format": "prettier --write src/**/*.ts",
@@ -27,7 +25,10 @@
     "payment-processing": "ts-node payment-processing/solution.ts",
     "error-handling": "ts-node error-handling/solution.ts",
     "data-validation": "ts-node data-validation/solution.ts",
-    "rate-limiting": "ts-node rate-limiting/solution.ts"
+    "rate-limiting": "ts-node rate-limiting/solution.ts",
+    "webhook-signature-validation": "ts-node webhook-signature-validation/solution.ts",
+    "payment-retry-logic": "ts-node payment-retry-logic/solution.ts",
+    "payment-data-transformation": "ts-node payment-data-transformation/solution.ts"
   },
   "keywords": [
     "stripe",
