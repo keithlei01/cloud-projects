@@ -85,7 +85,7 @@ export class WebhookEventProcessor {
         processed: true,
         eventId,
         processingTime: Date.now() - startTime,
-        error: processResult.success ? undefined : processResult.error
+        ...(processResult.success ? {} : { error: processResult.error })
       };
 
     } catch (error) {
@@ -340,7 +340,7 @@ export class WebhookEventProcessor {
   /**
    * Filters events by criteria
    */
-  filterEvents(filter: EventFilter): string[] {
+  filterEvents(_filter: EventFilter): string[] {
     const processedIds = this.getProcessedEventIds();
     
     return processedIds.filter(eventId => {
