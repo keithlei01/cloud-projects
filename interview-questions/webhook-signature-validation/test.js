@@ -1,4 +1,4 @@
-const { WebhookValidator } = require('./solution');
+const { WebhookValidator } = require('./my-solution');
 const crypto = require('crypto');
 
 describe('Webhook Signature Validation', () => {
