@@ -15,6 +15,9 @@
     "test:webhook-signature-validation": "jest webhook-signature-validation/test.js",
     "test:payment-retry-logic": "jest payment-retry-logic/test.js",
     "test:payment-data-transformation": "jest payment-data-transformation/test.js",
+    "test:api-rate-limit-calculator": "jest api-rate-limit-calculator/test.js",
+    "test:payment-status-tracker": "jest payment-status-tracker/test.js",
+    "test:webhook-event-processor": "jest webhook-event-processor/test.js",
     "lint": "eslint src/**/*.ts",
     "lint:fix": "eslint src/**/*.ts --fix",
     "format": "prettier --write src/**/*.ts",
@@ -28,7 +31,10 @@
     "rate-limiting": "ts-node rate-limiting/solution.ts",
     "webhook-signature-validation": "ts-node webhook-signature-validation/solution.ts",
     "payment-retry-logic": "ts-node payment-retry-logic/solution.ts",
-    "payment-data-transformation": "ts-node payment-data-transformation/solution.ts"
+    "payment-data-transformation": "ts-node payment-data-transformation/solution.ts",
+    "api-rate-limit-calculator": "ts-node api-rate-limit-calculator/solution.ts",
+    "payment-status-tracker": "ts-node payment-status-tracker/solution.ts",
+    "webhook-event-processor": "ts-node webhook-event-processor/solution.ts"
   },
   "keywords": [
     "stripe",
