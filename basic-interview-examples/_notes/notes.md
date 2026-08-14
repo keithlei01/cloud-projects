@@ -16,6 +16,7 @@ Interview usefulness (for your prep)
  | filter | ⭐⭐⭐ Very common | Keep rows where value >= min, valid lines | 
  | reduce | ⭐⭐⭐ Very common | Sum, count frequencies, group/aggregate | 
  | map | ⭐⭐⭐ Very common | Transform output shape (not covered yet but same tier) | 
+ | every | ⭐⭐ Common | Phrase keyword: ALL parts must be in the token set | 
  | slice | ⭐⭐ Common | Top-k: sorted.slice(0, k) | 
  | splice | ⭐ Rare | In-place remove/insert — almost never in metrics problems | 
 
@@ -39,6 +40,26 @@ const [name, age, city] = line.split(",").map((part) => part.trim());
 // splice - arr.splice(1, 2, "x", "y", "z");
 // ["a", "b", "c", "d"] => // ["a", "d", "x", "y", "z"] and returns ["b", "c"]
 const removed = arr.splice(start, deleteCount, ...itemsToInsert);
+
+// every — true only if ALL items pass (AND). Empty array → true.
+const phraseHits = parts.length > 0 && parts.every((p) => tokens.has(p));
+// "where is" needs both where AND is in the message Set
+// NOT the same as count: filter((t) => doc.includes(t)).length  // how MANY match (RAG score)
+```
+
+string — match
+- str.match(regex) — search string with a regex
+- with `g`: array of all matching substrings, or **null** if none (use `|| []`)
+- without `g`: first match + capture groups, or null
+```javascript
+"Where is my shipping?".toLowerCase().match(/[a-z0-9]+/g);
+// ["where", "is", "my", "shipping"]  — tokenizer (letters/digits runs)
+
+"???".match(/[a-z0-9]+/g);       // null
+"???".match(/[a-z0-9]+/g) || []; // []
+
+"id=42".match(/id=(\d+)/);
+// ["id=42", "42"]  — [0] full match, [1] first group
 ```
 
 More examples
