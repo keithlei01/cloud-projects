@@ -3,7 +3,22 @@
  * Run: node attempt.js
  */
 function topKFrequentErrors(logs, k) {
-  // TODO
+  const errorCount = new Map();
+  for (let i = 0; i < logs.length; i++) {
+    if (!errorCount.has(logs[i])) {
+      errorCount.set(logs[i], 0)
+    }
+    errorCount.set(logs[i], (errorCount.get(logs[i]) || 0) + 1)
+  }
+
+  let result = [...errorCount.entries()].map(([code, count]) => {
+    return { code, count };
+  });
+
+  return result.sort((a, b) => {
+    if (a.count === b.count) return a.code.localeCompare(b.code);
+    return b.count - a.count;
+  }).slice(0, k);
 }
 
 // --- tests ---

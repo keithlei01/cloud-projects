@@ -3,7 +3,16 @@
  * Run: node attempt.js
  */
 function twoSumReconciliation(amountsCents, targetCents) {
-  // TODO
+  const seen = new Map();
+  for (let i = 0; i < amountsCents.length; i++) {
+    const need = targetCents - amountsCents[i];
+    if (seen.has(need)) {
+      return [seen.get(need), i];
+    }
+    seen.set(amountsCents[i], i);
+  }
+
+  return [];
 }
 
 // --- tests ---

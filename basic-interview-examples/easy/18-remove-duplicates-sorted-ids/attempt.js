@@ -3,7 +3,16 @@
  * Run: node attempt.js
  */
 function removeDuplicatesSortedIds(ids) {
-  // TODO
+  if (ids.length === 0) return 0;
+
+  let write = 1;
+  for (let i = 1; i < ids.length; i++) {
+    if (ids[i] !== ids[write]) {
+      ids[write] = ids[i];
+      write++;
+    }
+  }
+  return write;
 }
 
 function check(label, input, expectedCount, expectedPrefix) {

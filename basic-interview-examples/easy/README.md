@@ -17,8 +17,11 @@
 | [13-effective-cpm-by-campaign](./13-effective-cpm-by-campaign/) | Effective CPM | Ratio × 1000 |
 | [14-two-sum-reconciliation](./14-two-sum-reconciliation/) | Two-sum pair matching | **LC #1** — hash map |
 | [15-top-k-frequent-errors](./15-top-k-frequent-errors/) | Top K error codes | **LC #347** — frequency |
+| [16-merge-sorted-array-in-place](./16-merge-sorted-array-in-place/) | Merge into buffer | **LC #88** — interview Q |
+| [17-merge-two-sorted-logs](./17-merge-two-sorted-logs/) | Merge two sorted | LC #88 variant |
+| [18-remove-duplicates-sorted-ids](./18-remove-duplicates-sorted-ids/) | Dedupe sorted IDs | **LC #26** — two pointers |
 
-**Target time:** 20–30 min each (08–13 slightly longer; 14–15 ~20 min).
+**Target time:** 20–30 min each (08–13 slightly longer; 14–18 ~20 min).
 
 ## Ads metrics ladder (06–13)
 
@@ -27,3 +30,7 @@ Spend → CTR → CPA → Reach/Frequency → ROAS → CPC → Budget % → eCPM
 ## Popular LeetCode (non-ads)
 
 14 Two Sum → 15 Top K Frequent
+
+## Merge / two pointers (interview merge Q)
+
+16 LC #88 in place → 17 merge new array → 18 LC #26 dedupe
